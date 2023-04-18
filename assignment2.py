@@ -80,11 +80,11 @@ def affine_testje():
 
 if __name__ == "__main__":
     
-
     for file1 in files:
         all_scores_without_self = []
         score_with_self = 0
         for file2 in files:
+            # print(folder + "/" + file1)
             img = cv.imread(folder + "/" + file1)
             img2 = cv.imread(folder + "/" + file2)
             # img2 = cv.imread('output_image.jpg')
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         
             # Initiate ORB detector, argument for number of keypoints
             # orb = cv.ORB_create(500)
-            orb = cv.SIFT_create(500)
+            orb = cv.ORB_create(500)
             
             # find the keypoints with ORB
             # print(img.shape)
@@ -104,6 +104,7 @@ if __name__ == "__main__":
             # BFMatcher with default params
             bf = cv.BFMatcher()
             matches = bf.knnMatch(des1, des2, k=2)
+            # matches = bf.match(des1,des2)
         
             # Apply ratio test
             """
@@ -111,16 +112,32 @@ if __name__ == "__main__":
 
             Short version: each keypoint of the first image is matched with a number of keypoints from the second image. We keep the 2 best matches for each keypoint (best matches = the ones with the smallest distance measurement). Lowe's test checks that the two distances are sufficiently different. If they are not, then the keypoint is eliminated and will not be used for further calculations.
             """
+            
             good = []
-            lowe_ratio = 0.89
+            lowe_ratio = 0.80
             for m,n in matches:
                 if m.distance < lowe_ratio*n.distance:
                     good.append([m])
+                    
+            MIN_MATCH_COUNT = 10 # minimum number of matches required to estimate transformation matrix
+            if len(good) >= MIN_MATCH_COUNT:
+                src_pts = np.float32([kp1[m[0].queryIdx].pt for m in good]).reshape(-1, 1, 2)
+                dst_pts = np.float32([kp2[m[0].trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
-            msg1 = 'using %s with lowe_ratio %.2f' % ("ORB", lowe_ratio)
-            msg2 = 'there are %d good matches of the %d' % (len(good), len(matches))
-            score_matcher = len(good) / len(matches)
+                # Estimate transformation matrix using RANSAC
+                M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC, 5.0)
+                
+                # Count inliers
+                inliers = np.sum(mask)
+
+                # Compute ratio of inliers
+                inlier_ratio = inliers / len(good)
+            else:
+                # Not enough matches were found, so the score is 0
+                inlier_ratio = 0
+
             
+            score_matcher = inlier_ratio
             hist_blue1, hist_green1, hist_red1 = calc_histogram(img)
             hist_blue2, hist_green2, hist_red2 = calc_histogram(img2)
             
@@ -137,22 +154,52 @@ if __name__ == "__main__":
             # hog
             # fd, hog_image = hog(img, orientations=8, pixels_per_cell=(16, 16), cells_per_block=(1, 1), visualize=True, channel_axis=-1)
             # fd2, hog_image2 = hog(img2, orientations=8, pixels_per_cell=(16, 16), cells_per_block=(1, 1), visualize=True, channel_axis=-1)
-            # plt.axis("off")
-            # plt.imshow(hog_image, cmap="gray")
-            # plt.show()
+            # # plt.axis("off")
+            # # plt.imshow(hog_image, cmap="gray")
+            # # plt.show()
+            # print(fd.shape, fd2.shape)
             # print(compare_hog_features(fd, fd2))
             
             # Display nicely
-            # img2 = cv.drawKeypoints(img, kp, None, color=(0,255,0), flags=0)
+            # img2 = cv.drawKeypoints(img2, kp2, None, color=(0,255,0), flags=0)
             # scale_percent = 30 # percent of original size
             # width = int(img2.shape[1] * scale_percent / 100)
             # height = int(img2.shape[0] * scale_percent / 100)
             # dim = (width, height)
             # resized = cv.resize(img2, dim, interpolation = cv.INTER_AREA)
-
+            
+            # img3 = cv.drawMatchesKnn(img,kp1,img2,kp2,good,None)
+            # scale_percent = 30 # percent of original size
+            # width = int(img3.shape[1] * scale_percent / 100)
+            # height = int(img3.shape[0] * scale_percent / 100)
+            # dim = (width, height)
+            # resized = cv.resize(img3, dim, interpolation = cv.INTER_AREA)
+            # # plt.imshow(img3),plt.show()
             # display("im", resized)
-            # break
+            break
+            
         print("All the other scores are", all_scores_without_self)
         print("The average score is", np.mean(all_scores_without_self))
         print("The score with itself is", score_with_self)
         break
+    
+    
+# other matcher:
+
+# img3 = cv.drawMatchesKnn(img,kp1,img2,kp2,good,None)
+# img3 = cv.drawMatches(img,kp1,img2,kp2,matches[:20],None)
+# scale_percent = 30 # percent of original size
+# width = int(img3.shape[1] * scale_percent / 100)
+# height = int(img3.shape[0] * scale_percent / 100)
+# dim = (width, height)
+# resized = cv.resize(img3, dim, interpolation = cv.INTER_AREA)
+# # plt.imshow(img3),plt.show()
+# display("im", resized)
+
+"""
+Vragenlijst:
+1. Wat is de beste metriek om matches te vergelijken? (# good matches en dan normalizen of met ransac  (tranform M en dan inliers) ?)
+2. Hog, afbeelding rescalen, kunnen we dat doen?
+3. Moet de paper in latex geschreven worden?
+4. Misschien video sample rate vraag
+"""
