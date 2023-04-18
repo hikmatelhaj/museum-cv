@@ -8,6 +8,9 @@ import cv2 as cv
 from matplotlib import pyplot as plt
 from skimage.feature import hog
 from scipy.spatial.distance import euclidean
+import time
+
+
 
 folder = "Database_paintings/Database"
 files = os.listdir(folder)
@@ -83,9 +86,10 @@ if __name__ == "__main__":
     for file1 in files:
         all_scores_without_self = []
         score_with_self = 0
+        img = cv.imread(folder + "/" + file1)
         for file2 in files:
+            st = time.time()
             # print(folder + "/" + file1)
-            img = cv.imread(folder + "/" + file1)
             img2 = cv.imread(folder + "/" + file2)
             # img2 = cv.imread('output_image.jpg')
             
@@ -176,6 +180,9 @@ if __name__ == "__main__":
             # resized = cv.resize(img3, dim, interpolation = cv.INTER_AREA)
             # # plt.imshow(img3),plt.show()
             # display("im", resized)
+            et = time.time()
+            elapsed_time = et - st
+            print('Execution time:', elapsed_time, 'seconds')
             break
             
         print("All the other scores are", all_scores_without_self)
@@ -202,4 +209,6 @@ Vragenlijst:
 2. Hog, afbeelding rescalen, kunnen we dat doen?
 3. Moet de paper in latex geschreven worden?
 4. Misschien video sample rate vraag
+5. Als we elke foto in de database vergelijken met alle andere fotos in de database, dan duurt dat super lang. Is dit normaal?
+Execution time 1 foto: 0.8440244197845459 seconds
 """
