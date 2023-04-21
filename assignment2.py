@@ -36,7 +36,7 @@ def compare_hog_features(hog1: np.ndarray, hog2: np.ndarray) -> float:
     """
     return euclidean(hog1, hog2)
 
-
+# klopt Colorhistogram nog als afbeeldingen niet dezelfde dimensies hebben. Ja, want we normaliseren de histogrammen
 def calc_histogram(img: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Calculate histograms for the blue, green, and red channels of an image.
@@ -52,11 +52,17 @@ def plot_histograms(histogram1, histogram2) -> None:
     """
     Plot histograms for comparison.
     """
-    plt.plot(histogram1, color='b')
+    # give plot name histogram 1
+    plt.title("Histogram 1")
+    plt.plot(histogram1[0], color='b')
+    plt.plot(histogram1[1], color='g')
+    plt.plot(histogram1[2], color='r')
     plt.show()
-    plt.plot(histogram2, color='r')
-    plt.show()
-    plt.plot(histogram2, color='g')
+
+    plt.title("Histogram 2")
+    plt.plot(histogram2[0], color='b')
+    plt.plot(histogram2[1], color='g')
+    plt.plot(histogram2[2], color='r')
     plt.show()
 
 
@@ -64,7 +70,7 @@ def get_final_score(scores: list[float]) -> float:
     """
     Creating a weighted average of the scores
     """
-    return np.average(scores, weights=[0.7, 0.3])
+    return np.average(scores, weights=[0.5, 0.25, 0.25])
 
 
 def affine_testje() -> None:
@@ -151,71 +157,97 @@ def calculate_homograhpy(good: list[cv.DMatch], kp1: tuple[list[cv.KeyPoint], li
 
     return inlier_ratio
 
+def normalize(scores: list[float]) -> list[float]:
+    """
+    Normalize the scores to a value between 0 and 1.
+    """
+    min_score = min(scores)
+    max_score = max(scores)
+    return [(score - min_score) / (max_score - min_score) for score in scores]
 
 if __name__ == "__main__":
     folder = "Database_paintings/Database"
     files = os.listdir(folder)
-
     for file1 in files:
-        all_scores_without_self = []
-        score_with_self = 0
         img = cv.imread(folder + "/" + file1)
+        img = cv.resize(img, (500, 500))
+        hog_scores = []
+        histogram_scores = []
+        matcher_scores = []
+        
+        
+        
         for file2 in files:
-            st = time.time()
+            # st = time.time()
             # print(folder + "/" + file1)
             img2 = cv.imread(folder + "/" + file2)
+            img2 = cv.resize(img2, (500, 500))
             # img2 = cv.imread('output_image.jpg')
 
             # Initiate ORB detector, argument for number of keypoints
-            # orb = cv.ORB_create(500)
             orb = cv.ORB_create(500)
 
             # find the keypoints with ORB
-            # find the keypoints and descriptors with SIFT
             kp1, des1 = orb.detectAndCompute(img, None)
             kp2, des2 = orb.detectAndCompute(img2, None)
 
             # BFMatcher with default params
             bf = cv.BFMatcher()
             matches = bf.knnMatch(des1, des2, k=2)
-            # matches = bf.match(des1,des2)
 
             good = lowe_test(matches)
 
             score_matcher = calculate_homograhpy(good, kp1, kp2)
+            matcher_scores.append(score_matcher)
 
             hist_blue1, hist_green1, hist_red1 = calc_histogram(img)
             hist_blue2, hist_green2, hist_red2 = calc_histogram(img2)
 
-            # plot_histograms([hist_blue, hist_green, hist_red], [hist_green, hist_blue, hist_red])
+            # plot_histograms([hist_blue1, hist_green1, hist_red1], [hist_green2, hist_blue2, hist_red2])
 
-            histogram_score = compare_histograms([hist_blue1, hist_green1, hist_red1], [
-                                                 hist_blue2, hist_green2, hist_red2])
-            final_score = get_final_score(
-                np.array([score_matcher, 1 - histogram_score]))
-            if file1 == file2:
-                score_with_self = final_score
-            else:
-                all_scores_without_self.append(final_score)
+            histogram_score = compare_histograms([hist_blue1, hist_green1, hist_red1], [hist_blue2, hist_green2, hist_red2])
+            histogram_scores.append(histogram_score)
+            
+
 
             # ideeen: structuur foto --> hog, grootte kader
             # hog
-            # fd, hog_image = hog(img, orientations=8, pixels_per_cell=(16, 16), cells_per_block=(1, 1), visualize=True, channel_axis=-1)
-            # fd2, hog_image2 = hog(img2, orientations=8, pixels_per_cell=(16, 16), cells_per_block=(1, 1), visualize=True, channel_axis=-1)
-            # # plt.axis("off")
-            # # plt.imshow(hog_image, cmap="gray")
-            # # plt.show()
-            # print(fd.shape, fd2.shape)
-            # print(compare_hog_features(fd, fd2))
+            fd, hog_image = hog(img, orientations=8, pixels_per_cell=(16, 16), cells_per_block=(1, 1), visualize=True, channel_axis=-1)
+            fd2, hog_image2 = hog(img2, orientations=8, pixels_per_cell=(16, 16), cells_per_block=(1, 1), visualize=True, channel_axis=-1)
+            # plt.axis("off")
+            # plt.imshow(hog_image, cmap="gray")
+            # plt.show()
+            hog_scores.append(compare_hog_features(fd, fd2))
 
-            et = time.time()
-            elapsed_time = et - st
-            print('Execution time:', elapsed_time, 'seconds')
-            break
-
-        print("All the other scores are", all_scores_without_self)
-        print("The average score is", np.mean(all_scores_without_self))
-        print("The score with itself is", score_with_self)
+            # et = time.time()
+            # elapsed_time = et - st
+            # print('Execution time:', elapsed_time, 'seconds')
+        
+        final_scores = []
+        print(hog_scores)
+        normalised_hog = normalize(hog_scores)
+        for i in range(len(hog_scores)):
+            
+            final_score = get_final_score(np.array([matcher_scores[i], 1 - histogram_scores[i], 1 - normalised_hog[i]]))
+            final_scores.append(final_score)
+        # Save results to files
+        with open('matcher_scores.txt', 'w') as f:
+            for item in matcher_scores:
+                f.write("%s\n" % item)
+                
+        with open('normalised_hog.txt', 'w') as f:
+            for item in normalised_hog:
+                f.write("%s\n" % item)
+                
+        with open('histogram_scores.txt', 'w') as f:
+            for item in histogram_scores:
+                f.write("%s\n" % item)
+                
+        with open('final_scores.txt', 'w') as f:
+            for item in final_scores:
+                f.write("%s\n" % item)
+        print("The average score is", np.mean(final_scores))
+        print("All the other scores are", final_scores)
         break
 
 
@@ -229,5 +261,16 @@ Vragenlijst:
 3. Moet de paper in latex geschreven worden? ja
 4. Misschien video sample rate vraag
 5. Als we elke foto in de database vergelijken met alle andere fotos in de database, dan duurt dat super lang. Is dit normaal?
-Execution time 1 foto: 0.8440244197845459 seconds => valt mee, niet alle fotos met alle fotos in db vergelijken, maar enkel met naburige gangen
+Execution time 1 foto: 0.8440244197845459 seconds => valt mee, niet alle fotos met alle fotos in db vergelijken, maar enkel met naburige 
+
+
+6. hidden markov modellen
+
+Methode om probabiliteiten en trnasities toe te wijzen:
+
+Als je een minuut geen schilderij ziet, dan moet de probabilieit over de gangen uitwaaien, 
+Probabiliteiten dan samentrekken nadat je een schilderij ziet ( e.g. p(e|x), event kies je zelf, kan bijvoorbeeld schilderij nummer 322 > score: 0.7  )
+Probabiliteit berekenen van een bepaald schilderij met een ruimte
+
+
 """
