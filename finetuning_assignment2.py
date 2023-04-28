@@ -4,7 +4,7 @@ def get_final_score(scores: list[float]) -> float:
     """
     Creating a weighted average of the scores
     """
-    return np.average(scores, weights=[0, 0, 1])
+    return np.average(scores, weights=[0.8, 0.2, 0])
 
 
 

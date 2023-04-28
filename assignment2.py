@@ -70,7 +70,7 @@ def get_final_score(scores: list[float]) -> float:
     """
     Creating a weighted average of the scores
     """
-    return np.average(scores, weights=[0.5, 0.25, 0.25])
+    return np.average(scores, weights=[0.8, 0.2])
 
 
 def affine_testje() -> None:
@@ -171,7 +171,6 @@ if __name__ == "__main__":
     for file1 in files:
         img = cv.imread(folder + "/" + file1)
         img = cv.resize(img, (500, 500))
-        hog_scores = []
         histogram_scores = []
         matcher_scores = []
         
@@ -209,43 +208,27 @@ if __name__ == "__main__":
             histogram_scores.append(histogram_score)
             
 
-
-            # ideeen: structuur foto --> hog, grootte kader
-            # hog
-            fd, hog_image = hog(img, orientations=8, pixels_per_cell=(16, 16), cells_per_block=(1, 1), visualize=True, channel_axis=-1)
-            fd2, hog_image2 = hog(img2, orientations=8, pixels_per_cell=(16, 16), cells_per_block=(1, 1), visualize=True, channel_axis=-1)
-            # plt.axis("off")
-            # plt.imshow(hog_image, cmap="gray")
-            # plt.show()
-            hog_scores.append(compare_hog_features(fd, fd2))
-
             # et = time.time()
             # elapsed_time = et - st
             # print('Execution time:', elapsed_time, 'seconds')
+            
         
         final_scores = []
-        print(hog_scores)
-        normalised_hog = normalize(hog_scores)
-        for i in range(len(hog_scores)):
-            
-            final_score = get_final_score(np.array([matcher_scores[i], 1 - histogram_scores[i], 1 - normalised_hog[i]]))
+        for i in range(len(histogram_scores)):
+            final_score = get_final_score(np.array([matcher_scores[i], 1 - histogram_scores[i]]))
             final_scores.append(final_score)
         # Save results to files
-        with open('matcher_scores.txt', 'w') as f:
-            for item in matcher_scores:
-                f.write("%s\n" % item)
+        # with open('matcher_scores.txt', 'w') as f:
+        #     for item in matcher_scores:
+        #         f.write("%s\n" % item)
                 
-        with open('normalised_hog.txt', 'w') as f:
-            for item in normalised_hog:
-                f.write("%s\n" % item)
+        # with open('histogram_scores.txt', 'w') as f:
+        #     for item in histogram_scores:
+        #         f.write("%s\n" % item)
                 
-        with open('histogram_scores.txt', 'w') as f:
-            for item in histogram_scores:
-                f.write("%s\n" % item)
-                
-        with open('final_scores.txt', 'w') as f:
-            for item in final_scores:
-                f.write("%s\n" % item)
+        # with open('final_scores.txt', 'w') as f:
+        #     for item in final_scores:
+        #         f.write("%s\n" % item)
         print("The average score is", np.mean(final_scores))
         print("All the other scores are", final_scores)
         break
