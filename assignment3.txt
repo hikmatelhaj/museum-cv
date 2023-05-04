@@ -1,0 +1,11 @@
+
+We zien een schilderij
+Eerst weet ge niet in welke zaal, dus dan moet je matchen met alles
+
+We kijken naar de top 3. Stel ge matcht met 3 schilterijen in zaal A, H, G
+
+Je kijkt de eerste 5 seconden binnen uw zaal, daarna alle aanliggende zalen, daarna verder en verder tot een match en dan verkleint het were
+
+
+
+Hoe kunnen we positie exact bepalen indien we niet weten aan welke muur schilderij hangt in de zaal.
