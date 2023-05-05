@@ -58,6 +58,43 @@ def findPainting(image, returnBoundingBox=False):
     else:
         return approx_list
 
+def applyMeanShift(image):
+
+    filtered_img = cv.pyrMeanShiftFiltering(image, 10, 20)
+
+    return filtered_img
+    
+def getMask(img):
+    hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+    hsv = cv.resize(hsv, (int(hsv.shape[0]/5), int(hsv.shape[1]/5)))
+    channels = cv.split(hsv)
+    colors = ("h", "s", "v")
+    lower = []
+    upper = []
+    for (channel, color) in zip(channels, colors):
+        m = 10
+        hist = cv.calcHist([channel], [0], None, [m], [0, 256])
+        bin = hist.argmax()
+
+        lower.append(((bin)/(m))*256)
+        upper.append(((bin+1)/(m))*256)
+        print(bin)
+
+    print(lower)
+    print(upper)
+
+    mask = cv.inRange(hsv, (lower[0]-50, lower[1]-50, lower[2]-50), (upper[0]+50, upper[1]+50, upper[2]+50))
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv.dilate(mask, kernel=kernel, iterations=2)
+    mask = cv.bitwise_not(mask)
+    mask = cv.erode(mask, kernel, iterations=2)
+
+    mask = cv.resize(mask, (int(img.shape[1]), int(img.shape[0])))
+    print(mask.shape)
+    print(img.shape)
+    img_binary = cv.bitwise_and(img, img, mask=mask)
+    return img_binary
+
 
 def loop_paintings():
     img_path = "./data/Database2/Zaal_A/20190323_111313.jpg"
@@ -86,6 +123,10 @@ def loop_paintings():
         orig_img = cv.imread(img_path)
         img = orig_img.copy()
 
+        # img = cv.resize(img, (int(img.shape[0]/5), int(img.shape[1]/5)))
+
+        # img = applyMeanShift(img)
+        img = getMask(img)
         bb_list = findPainting(img)
 
         for _, el in img_row.iterrows():
