@@ -60,9 +60,7 @@ def transform(image, polygon):
     return result
 
 # process single image and transform to cropped image
-def process_single_image(image_path, drawPolygons=True):
-    print(f"Processing {image_path}")
-    img = cv.imread(image_path)
+def process_single_image(img, drawPolygons=True):
     polygons = findPainting(img)
 
     result_imgs = []
@@ -105,7 +103,9 @@ def loop(save_path="./extracted_paintings/", drawPolygons=False):
     frames_path = "./data/Database2"        # path of unprocessed images
     for img_path in glob.glob(f"{frames_path}/*/*.jpg"):
         file_name = img_path.split("\\")[-1]
-        results = process_single_image(img_path, drawPolygons)
+        print(f"Processing {img_path}")
+        img = cv.imread(img_path)
+        results = process_single_image(img, drawPolygons)
         for idx, extracted_painting in enumerate(results):
             ret = cv.imwrite(f"{save_path}/{file_name.strip('.jpg')}_{idx}.jpg", extracted_painting)
             if not ret: 
@@ -142,7 +142,7 @@ def loop_analytics():
     print(f"Average Intersection-over-Union over all images:\n\t{iou_sum/iou_len}")
 
 # extract all paintings out of all images:
-loop()
+# loop()
 
 # analytics of all images
 # loop_analytics()
