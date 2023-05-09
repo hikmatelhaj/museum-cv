@@ -2,7 +2,6 @@
 import cv2 as cv
 import numpy as np
 import pandas as pd
-import os
 import glob
 import ast
 from shapely.geometry import Polygon
@@ -13,96 +12,109 @@ def bb_iou(gt_bb, pred_bb):
     gt_bb_shape = Polygon(gt_bb)
     pred_bb_shape = Polygon(pred_bb)
 
-    intersection = gt_bb_shape.intersection(pred_bb_shape)
-    if intersection:
+    if not gt_bb_shape.is_valid or not pred_bb_shape.is_valid:
+        return -1
+
+    if gt_bb_shape.intersects(pred_bb_shape):
+        intersection = gt_bb_shape.intersection(pred_bb_shape)
         intersection_area = intersection.area
         union_area = gt_bb_shape.union(pred_bb_shape).area
-        return intersection_area / union_area
 
+        return intersection_area / union_area
+    
     return -1
 
-
-# extract bounding box van
-def findPainting(image, returnBoundingBox=False):
-
+# extract painting (polygon shape) out of image
+def findPainting(image):
     gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-    sigma = 0.40
-    v = np.median(gray)
-    lower = int(max(0, (1.0 - sigma) * v))
-    upper = int(min(255, (1.0 + sigma) * v))
-    L2Gradient = True
-    # ret, thresh = cv.threshold(blur, 1, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
-
-    edges = cv.Canny(gray, 70, 250)
-    dilated = cv.dilate(edges, np.ones((5, 5), np.uint8))
-
-   # Get all contours of the edges
-    contours, hierarchy = cv.findContours(
-        dilated, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-    contours = sorted(contours, key=cv.contourArea, reverse=True)[:10]
-
-    # Check for every contour if it is a polygon with 4 corners
-    approx_list = []
-    for c in contours:
-        app = cv.approxPolyDP(c, 0.05*cv.arcLength(c, True), True)
-        if len(app) == 4:
-            app = app.reshape(4, 2)
-            approx_list.append(app)
-
-    if returnBoundingBox:
-        bb_list = []
-        for approx in approx_list:
-            x, y, w, h = cv.boundingRect(approx)
-            bb_list.append(np.array([[x, y+h], [x+w, y+h], [x+w, y], [x, y]]))
-        return bb_list
-    else:
-        return approx_list
-
-def applyMeanShift(image):
-
-    filtered_img = cv.pyrMeanShiftFiltering(image, 10, 20)
-
-    return filtered_img
+    ret, th = cv.threshold(gray, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
+    blur = cv.GaussianBlur(th,(5,5),0)
+    edges = cv.Canny(blur, 50, 120)
+    dilated = cv.dilate(edges, np.ones((5, 5), np.uint8), iterations=3)
     
-def getMask(img):
-    hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-    hsv = cv.resize(hsv, (int(hsv.shape[0]/5), int(hsv.shape[1]/5)))
-    channels = cv.split(hsv)
-    colors = ("h", "s", "v")
-    lower = []
-    upper = []
-    for (channel, color) in zip(channels, colors):
-        m = 10
-        hist = cv.calcHist([channel], [0], None, [m], [0, 256])
-        bin = hist.argmax()
+    contours = cv.findContours(dilated, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[0]
+    contours = sorted(contours, key=cv.contourArea, reverse=True)[:10]
+    
+    cut_list = []
+    for c in contours:
+        polygon = cv.approxPolyDP(c, 0.05*cv.arcLength(c, True), True)
+        if len(polygon) == 4:
+            polygon = polygon.reshape(4, 2)
+            if Polygon(polygon).area > 15000:
+                cut_list.append(polygon)
+    return cut_list
 
-        lower.append(((bin)/(m))*256)
-        upper.append(((bin+1)/(m))*256)
-        print(bin)
+# crop image based on polygon of painting
+def transform(image, polygon):
+    maxW = max(polygon[:,0]) - min(polygon[:,0])
+    maxH = max(polygon[:,1]) - min(polygon[:,1])
+    bounding_box = np.array([
+        [0, 0],
+        [0, maxH],
+        [maxW, maxH],
+        [maxW, 0]], dtype="float32")
+    print(polygon)
+    print(bounding_box)
+    transform = cv.getPerspectiveTransform(np.float32(polygon), bounding_box)
+    result = cv.warpPerspective(image, transform, (maxW, maxH))
+    return result
 
-    print(lower)
-    print(upper)
+# process single image and transform to cropped image
+def process_single_image(image_path, drawPolygons=True):
+    print(f"Processing {image_path}")
+    img = cv.imread(image_path)
+    polygons = findPainting(img)
 
-    mask = cv.inRange(hsv, (lower[0]-50, lower[1]-50, lower[2]-50), (upper[0]+50, upper[1]+50, upper[2]+50))
-    kernel = np.ones((5, 5), np.uint8)
-    mask = cv.dilate(mask, kernel=kernel, iterations=2)
-    mask = cv.bitwise_not(mask)
-    mask = cv.erode(mask, kernel, iterations=2)
+    result_imgs = []
 
-    mask = cv.resize(mask, (int(img.shape[1]), int(img.shape[0])))
-    print(mask.shape)
-    print(img.shape)
-    img_binary = cv.bitwise_and(img, img, mask=mask)
-    return img_binary
+    for polygon in polygons:
+        if drawPolygons:
+            img = cv.polylines(img, [polygon], True, (0, 0, 255), 10)
+        
+        maxW = max(polygon[:,0]) - min(polygon[:,0])
+        maxH = max(polygon[:,1]) - min(polygon[:,1])
+        bounding_box = np.array([
+            [0, 0],
+            [0, maxH],
+            [maxW, maxH],
+            [maxW, 0]], dtype="float32")
+        transform = cv.getPerspectiveTransform(np.float32(polygon), bounding_box)
+        result = cv.warpPerspective(img, transform, (maxW, maxH))
+        result_imgs.append(result)
+    
+    return result_imgs
 
+# some statistics of a single image (intersection over union)
+def analytics_single_image(image_path, ground_truth_polygon=[]):
+    img = cv.imread(image_path)
+    polygons = findPainting(img)
 
-def loop_paintings():
-    img_path = "./data/Database2/Zaal_A/20190323_111313.jpg"
-    img_path = "./data/Database2/Zaal_A/20190323_111327.jpg"
+    for polygon in polygons:
+        iou = bb_iou(ground_truth_polygon, polygon)
+        if iou != -1:
+            return iou
+    return 1
+    
 
-    imgs_path = "./data/Database"
-    clear_path = "./data/Database2"
-    log_path = "./data/Database_log.csv"
+# loop over all frames and save extracted paintings in `save_path` path
+def loop(save_path="./extracted_paintings/", drawPolygons=False):
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    if not os.path.isdir(save_path):
+        print(f"{save_path} is not a valid directory")
+    frames_path = "./data/Database2"        # path of unprocessed images
+    for img_path in glob.glob(f"{frames_path}/*/*.jpg"):
+        file_name = img_path.split("\\")[-1]
+        results = process_single_image(img_path, drawPolygons)
+        for idx, extracted_painting in enumerate(results):
+            ret = cv.imwrite(f"{save_path}/{file_name.strip('.jpg')}_{idx}.jpg", extracted_painting)
+            if not ret: 
+                print(f"Saving failed: {save_path}/{file_name.strip('.jpg')}_{idx}.jpg")
+
+def loop_analytics():
+    print(f"Processing analytics...")
+    frames_path = "./data/Database2"        # path of unprocessed images
+    log_path = "./data/Database_log.csv"    # path of database log
 
     log = pd.read_csv(log_path, skiprows=0)
 
@@ -112,44 +124,25 @@ def loop_paintings():
     log["Bottom-right"] = log["Bottom-right"].apply(ast.literal_eval)
 
     iou_sum = 0
-    bb_count = 0
+    iou_len = 0
 
-    for img_path in glob.glob(f"{clear_path}/*/*.jpg"):
-        _, zaal, afb_naam = img_path_excl = img_path.split("\\")
+    for img_path in glob.glob(f"{frames_path}/*/*.jpg"):
+        _, zaal, afb_naam = img_path.split("\\")
         afb_naam = afb_naam.strip(".jpg")
 
         img_row = log[(log['Room'] == zaal) & (log['Photo'] == afb_naam)]
-
-        orig_img = cv.imread(img_path)
-        img = orig_img.copy()
-
-        # img = cv.resize(img, (int(img.shape[0]/5), int(img.shape[1]/5)))
-
-        # img = applyMeanShift(img)
-        img = getMask(img)
-        bb_list = findPainting(img)
-
+        
         for _, el in img_row.iterrows():
             pts = np.array([el["Top-left"], el["Top-right"],
-                           el["Bottom-right"], el["Bottom-left"]])
-            pts = pts.reshape((-1, 2))
-            img = cv.polylines(img, [pts], True, (0, 255, 0), 10)
+                           el["Bottom-right"], el["Bottom-left"]]).reshape((-1, 2))
+            iou_avg_img = analytics_single_image(img_path, pts)
+            iou_sum += iou_avg_img
+            iou_len += 1
+    
+    print(f"Average Intersection-over-Union over all images:\n\t{iou_sum/iou_len}")
 
-            for bb in bb_list:
-                img = cv.polylines(img, [bb], True, (0, 0, 255), 10)
-                try:
-                    iou = bb_iou(pts, bb)
-                    if iou != -1:
-                        iou_sum += iou
-                        bb_count += 1
+# extract all paintings out of all images:
+loop()
 
-                except:
-                    continue
-        cv.imshow("X", cv.resize(img, (int(img.shape[0]/5), int(img.shape[1]/5))))
-        cv.waitKey()
-        cv.destroyAllWindows()
-
-    print(f"Average I-o-U: {iou_sum/bb_count}")
-
-
-loop_paintings()
+# analytics of all images
+# loop_analytics()

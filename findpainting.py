@@ -77,7 +77,7 @@ def applyMeanShift(image):
     #cv.destroyAllWindows()
 
 def findPainting(image, returnBoundingBox=False):
-
+    image = cv.resize(image, (int(image.shape[0]/5), int(image.shape[1]/5)))
     gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     sigma = 0.40
     v = np.median(gray)
@@ -106,7 +106,7 @@ def findPainting(image, returnBoundingBox=False):
         bb_list = []
         for approx in approx_list:
             x, y, w, h = cv.boundingRect(approx)
-            bb_list.append(np.array([[x, y+h], [x+w, y+h], [x+w, y], [x, y]]))
+            bb_list.append(np.array([[x*5, (y+h)*5], [(x+w)*5, (y+h)*5], [(x+w)*5, y*5], [x*5, y*5]]))
         return bb_list
     else:
         return approx_list
