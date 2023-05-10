@@ -6,6 +6,7 @@ import glob
 import ast
 from shapely.geometry import Polygon
 import os
+from assignment2.assignment2 import *
 
 # calculate intersection over union of bounding box
 def bb_iou(gt_bb, pred_bb):
@@ -111,6 +112,44 @@ def loop(save_path="./extracted_paintings/", drawPolygons=False):
             if not ret: 
                 print(f"Saving failed: {save_path}/{file_name.strip('.jpg')}_{idx}.jpg")
 
+def make_directories(path):
+    try: 
+        os.mkdir(path) 
+    except OSError as error: 
+        pass
+
+def loop_for_assignment_2(drawPolygons=False):
+    root_path = "Results_assignment2"
+    make_directories(root_path)
+    frames_path = "Database/Computervisie 2020 Project Database/test_pictures_msk"        # path of unprocessed images
+    counter = 1
+    for img_path in glob.glob(f"{frames_path}/*.jpg"):
+        file_name = img_path.split("\\")[-1]
+        print(f"Processing {img_path}")
+        img = cv.imread(img_path)
+        
+        results = process_single_image(img, drawPolygons)
+        print("Done processing")
+        for idx, extracted_painting in enumerate(results):
+            subfolder = root_path + "/" + str(counter)
+            make_directories(subfolder)
+            counter += 1
+            scores, files = calculate_score_assignment2(extracted_painting, "Database_paintings/Database")
+            
+            
+            
+            scores = np.array(scores)
+            print(np.max(scores))
+            ind = np.argpartition(scores, -5)[-5:]
+            top5 = scores[ind]
+            files = np.array(files)
+            for i, matching_file in enumerate(files[ind]):
+                cv.imwrite(f"{subfolder}/match_{top5[i]}_{matching_file}.png", cv.imread("Database_paintings/Database/" + matching_file))
+            cv.imwrite(f"{subfolder}/test_image_{matching_file}.png", img)
+            cv.imwrite(f"{subfolder}/extracted_painting.png", extracted_painting)
+        
+
+
 def loop_analytics():
     print(f"Processing analytics...")
     frames_path = "./data/Database2"        # path of unprocessed images
@@ -142,7 +181,7 @@ def loop_analytics():
     print(f"Average Intersection-over-Union over all images:\n\t{iou_sum/iou_len}")
 
 # extract all paintings out of all images:
-# loop()
+loop_for_assignment_2()
 
 # analytics of all images
 # loop_analytics()
