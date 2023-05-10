@@ -86,15 +86,12 @@ matrix[40, 8] = 1
 matrix[39, 5] = 1
 matrix[39, 4] = 1
 matrix[39, 0] = 1
-# print(matrix)
-
 matrixT = np.transpose(matrix)
-matrix_final = matrix + matrixT - (np.identity(41) * 0.7)
+matrix_final = matrix + matrixT - (np.identity(41) * probability_same_room)
 
 
 # Buren van buren krijgen een score van 2
 
-print(matrix_final)
 for i in range(len(matrix_final)):
     indices = np.where(matrix_final[i] == 1)
     for index in indices[0]:
@@ -102,17 +99,8 @@ for i in range(len(matrix_final)):
         for index_neighbour in indices_neighbours[0]:
             if matrix_final[i, index_neighbour] == 0:
                 matrix_final[i, index_neighbour] = 2
-
-print(matrix_final)
-# plt.imshow(matrix_final)
-# # plt.colorbar()
-# plt.show()
-
 # Count the occurences of 2 
 
-# copilot replace every 1 with 0.7 with nump
-print("here")
-# print(matrix_final[matrix_final[i] == 1])
 
 for i in range(len(matrix_final)):
     count = np.count_nonzero(matrix_final[i] == 1)
@@ -120,13 +108,4 @@ for i in range(len(matrix_final)):
     count = np.count_nonzero(matrix_final[i] == 2)
     matrix_final[i][matrix_final[i] == 2] = probability_next_next_room / count
 
-# for i in range(len(matrix_final)):
-#     print(np.sum(matrix_final[i]))
-print(matrix_final)
-
-
-# for i in range(len(matrix_final)):
-#     if len(matrix_final[[i, matrix_final] == 1]) > 0:
-#         matrix_final[[i, matrix_final] == 1] = probability_next_room / len(matrix_final[[i, matrix_final] == 1])
-#     if len(matrix_final[[i, matrix_final] == 2]) > 0:
-#         matrix_final[[i, matrix_final] == 2] = probability_next_next_room / len(matrix_final[[i, matrix_final] == 2])
+transition_matrix = matrix_final
