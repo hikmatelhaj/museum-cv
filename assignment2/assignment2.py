@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from skimage.feature import hog
 from scipy.spatial.distance import euclidean
 import time
+import pickle
 
 
 def display(title, img):
@@ -166,26 +167,71 @@ def normalize(scores: list[float]) -> list[float]:
     return [(score - min_score) / (max_score - min_score) for score in scores]
 
 
-def calculate_score_assignment2(img, db_folder):
-    
+def create_keypoints_and_color_hist_db(db_folder):
     files = os.listdir(db_folder)
-    img = cv.resize(img, (500, 500))
-    histogram_scores = []
-    matcher_scores = []
-        
-        
+    kps = []
+    dess = []
+    histogram = []
+    
     for file2 in files:
+        st = time.time()
         img2 = cv.imread(db_folder + "/" + file2)
-        
         img2 = cv.resize(img2, (500, 500))
 
         # Initiate ORB detector, argument for number of keypoints
         orb = cv.ORB_create(500)
 
         # find the keypoints with ORB
-        kp1, des1 = orb.detectAndCompute(img, None)
         kp2, des2 = orb.detectAndCompute(img2, None)
+        dess.append(des2)
+        kp_list = [(k.pt, k.size, k.angle, k.response, k.octave, k.class_id) for k in kp2]
+        kps.append(kp_list)
 
+        hist_blue2, hist_green2, hist_red2 = calc_histogram(img2)
+        histogram.append([hist_blue2, hist_green2, hist_red2])
+        
+    with open('keypoints.pkl', 'wb') as f:
+        pickle.dump(kps, f)
+        
+    with open('descriptors.pkl', 'wb') as f:
+        pickle.dump(dess, f)
+
+    with open('histogram.pkl', 'wb') as f:
+        pickle.dump(histogram, f)
+    
+        
+
+def calculate_score_assignment2(img, db_folder):
+    
+    files = os.listdir(db_folder)
+    img = cv.resize(img, (500, 500))
+    
+    # Initiate ORB detector, argument for number of keypoints
+    # find the keypoints with ORB
+    orb = cv.ORB_create(500)
+    kp1, des1 = orb.detectAndCompute(img, None)
+    
+    histogram_scores = []
+    matcher_scores = []
+    
+    with open('keypoints.pkl', 'rb') as f:
+        kps = pickle.load(f)
+
+    with open('descriptors.pkl', 'rb') as f:
+        dess = pickle.load(f)
+        
+    with open('histogram.pkl', 'rb') as f:
+        histogram = pickle.load(f)
+
+        
+    for i, file2 in enumerate(files):
+
+        # st = time.time()
+        # kp2, des2 = orb.detectAndCompute(img2, None)
+        kp_list = kps[i]
+        kp2 = [cv.KeyPoint(x, y, size, angle, response, octave, class_id) for (x, y), size, angle, response, octave, class_id in kp_list] 
+        des2 = dess[i]
+        
         # BFMatcher with default params
         bf = cv.BFMatcher()
         matches = bf.knnMatch(des1, des2, k=2)
@@ -195,18 +241,20 @@ def calculate_score_assignment2(img, db_folder):
         score_matcher = calculate_homograhpy(good, kp1, kp2)
         matcher_scores.append(score_matcher)
 
+        histogram_i = histogram[i]
         hist_blue1, hist_green1, hist_red1 = calc_histogram(img)
-        hist_blue2, hist_green2, hist_red2 = calc_histogram(img2)
+        hist_blue2, hist_green2, hist_red2 = histogram_i[0], histogram_i[1], histogram_i[2] # calc_histogram(img2)
 
         # plot_histograms([hist_blue1, hist_green1, hist_red1], [hist_green2, hist_blue2, hist_red2])
 
         histogram_score = compare_histograms([hist_blue1, hist_green1, hist_red1], [hist_blue2, hist_green2, hist_red2])
         histogram_scores.append(histogram_score)
         
-
         # et = time.time()
         # elapsed_time = et - st
         # print('Execution time:', elapsed_time, 'seconds')
+        
+
         
     final_scores = []
     for i in range(len(histogram_scores)):

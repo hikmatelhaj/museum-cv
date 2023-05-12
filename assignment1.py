@@ -180,8 +180,11 @@ def loop_analytics():
     
     print(f"Average Intersection-over-Union over all images:\n\t{iou_sum/iou_len}")
 
+# create_keypoints_and_color_hist_db("Database_paintings/Database")
+
 # extract all paintings out of all images:
 loop_for_assignment_2()
 
 # analytics of all images
 # loop_analytics()
+

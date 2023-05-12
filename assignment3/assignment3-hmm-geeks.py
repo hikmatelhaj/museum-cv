@@ -82,7 +82,6 @@ print("Most likely hidden states:", hidden_states)
 
 # https://www.geeksforgeeks.org/hidden-markov-model-in-machine-learning/
 
-
 # import the necessary libraries
 # import numpy as np
 # import matplotlib.pyplot as plt

@@ -12,14 +12,15 @@ def video_frame_process(video_path, frame_reduce=5):
 
             results = assignment1.process_single_image(frame)
             for idx, extracted_painting in enumerate(results):
+                # cv.imwrite(f'./dataset_video/painting_{idx}', extracted_painting)
                 cv.imshow(f'painting {idx}', extracted_painting)
 
-            cv.waitKey()
-            for i in range(len(results)):
-                cv.destroyWindow(f'painting {i}')
+            # cv.waitKey()
+            # for i in range(len(results)):
+            #     cv.destroyWindow(f'painting {i}')
         
-            if cv.waitKey(10) == 27:
-                break
+            # if cv.waitKey(10) == 27:
+            #     break
         f += 1
 
-video_frame_process("./telin.ugent.be/~dvhamme/computervisie_2022/videos/smartphone/MSK_01.mp4")
+video_frame_process("videos/MSK_02.mp4")
