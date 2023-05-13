@@ -10,6 +10,7 @@ from skimage.feature import hog
 from scipy.spatial.distance import euclidean
 import time
 import pickle
+import concurrent.futures
 
 
 def display(title, img):
@@ -199,10 +200,62 @@ def create_keypoints_and_color_hist_db(db_folder):
     with open('histogram.pkl', 'wb') as f:
         pickle.dump(histogram, f)
     
+
+def process_file(file, img, kp1, des1, histogram, i, kps, dess):
+    # Initiate ORB detector, argument for number of keypoints
+    # find the keypoints with ORB
+    kp_list = kps[i]
+    kp2 = [cv.KeyPoint(x, y, size, angle, response, octave, class_id) for (x, y), size, angle, response, octave, class_id in kp_list] 
+    des2 = dess[i]
+    bf = cv.BFMatcher()
+    matches = bf.knnMatch(des1, des2, k=2)
+    good = lowe_test(matches)
+    score_matcher = calculate_homograhpy(good, kp1, kp2)
+    histogram_i = histogram[i]
+    hist_blue1, hist_green1, hist_red1 = calc_histogram(img)
+    hist_blue2, hist_green2, hist_red2 = histogram_i[0], histogram_i[1], histogram_i[2]
+    histogram_score = compare_histograms([hist_blue1, hist_green1, hist_red1], [hist_blue2, hist_green2, hist_red2])
+    final_score = get_final_score(np.array([score_matcher, 1 - histogram_score]))
+    return final_score
+
+def calculate_score_assignment2_multi(img, db_folder):
+    st = time.time()
+    files = os.listdir(db_folder)
+    img = cv.resize(img, (500, 500))
+    
+    # Initiate ORB detector, argument for number of keypoints
+    # find the keypoints with ORB
+    orb = cv.ORB_create(500)
+    kp1, des1 = orb.detectAndCompute(img, None)
+    
+    histogram_scores = []
+    matcher_scores = []
+    
+    with open('keypoints.pkl', 'rb') as f:
+        kps = pickle.load(f)
+
+    with open('descriptors.pkl', 'rb') as f:
+        dess = pickle.load(f)
         
+    with open('histogram.pkl', 'rb') as f:
+        histogram = pickle.load(f)
+
+    final_scores = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        futures = []
+        for i, file in enumerate(files):
+            future = executor.submit(process_file, file, img, kp1, des1, histogram, i, kps, dess)
+            futures.append(future)
+        for future in concurrent.futures.as_completed(futures):
+            final_scores.append(future.result())
+
+    et = time.time()
+    elapsed_time = et - st
+    print('Execution time:', elapsed_time, 'seconds')
+    return final_scores, files   
 
 def calculate_score_assignment2(img, db_folder):
-    
+    st = time.time()
     files = os.listdir(db_folder)
     img = cv.resize(img, (500, 500))
     
@@ -226,7 +279,7 @@ def calculate_score_assignment2(img, db_folder):
         
     for i, file2 in enumerate(files):
 
-        # st = time.time()
+        
         # kp2, des2 = orb.detectAndCompute(img2, None)
         kp_list = kps[i]
         kp2 = [cv.KeyPoint(x, y, size, angle, response, octave, class_id) for (x, y), size, angle, response, octave, class_id in kp_list] 
@@ -250,17 +303,15 @@ def calculate_score_assignment2(img, db_folder):
         histogram_score = compare_histograms([hist_blue1, hist_green1, hist_red1], [hist_blue2, hist_green2, hist_red2])
         histogram_scores.append(histogram_score)
         
-        # et = time.time()
-        # elapsed_time = et - st
-        # print('Execution time:', elapsed_time, 'seconds')
-        
 
         
     final_scores = []
     for i in range(len(histogram_scores)):
         final_score = get_final_score(np.array([matcher_scores[i], 1 - histogram_scores[i]]))
         final_scores.append(final_score)
-    
+    et = time.time()
+    elapsed_time = et - st
+    print('Execution time:', elapsed_time, 'seconds')
     return final_scores, files
 
 

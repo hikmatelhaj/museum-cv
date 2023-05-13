@@ -134,7 +134,7 @@ def loop_for_assignment_2(drawPolygons=False):
             subfolder = root_path + "/" + str(counter)
             make_directories(subfolder)
             counter += 1
-            scores, files = calculate_score_assignment2(extracted_painting, "Database_paintings/Database")
+            scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
             
             
             
@@ -183,8 +183,13 @@ def loop_analytics():
 # create_keypoints_and_color_hist_db("Database_paintings/Database")
 
 # extract all paintings out of all images:
-# loop_for_assignment_2()
+
 
 # analytics of all images
 # loop_analytics()
 
+
+# copilpt do the main thing in python
+
+if __name__ == "__main__":
+    loop_for_assignment_2()
