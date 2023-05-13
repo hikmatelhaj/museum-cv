@@ -183,7 +183,7 @@ def loop_analytics():
 # create_keypoints_and_color_hist_db("Database_paintings/Database")
 
 # extract all paintings out of all images:
-loop_for_assignment_2()
+# loop_for_assignment_2()
 
 # analytics of all images
 # loop_analytics()
