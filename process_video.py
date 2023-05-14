@@ -36,7 +36,7 @@ def video_frame_process(video_path):
             results = assignment1.process_single_image(frame)
             for idx, extracted_painting in enumerate(results):
                 # cv2.imwrite(f'./dataset_video/painting_{idx}', extracted_painting)
-                scores, files = calculate_score_assignment2(extracted_painting, "Database_paintings/Database")
+                scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
                 print("calculated")
                 canvas = np.zeros((600, 1000, 3), dtype=np.uint8)
                 

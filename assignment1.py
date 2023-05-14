@@ -189,7 +189,6 @@ def loop_analytics():
 # loop_analytics()
 
 
-# copilpt do the main thing in python
-
 if __name__ == "__main__":
-    loop_for_assignment_2()
+    # loop_for_assignment_2()
+    create_keypoints_and_color_hist_db("Database_paintings/Database")

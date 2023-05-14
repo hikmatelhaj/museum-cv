@@ -175,12 +175,17 @@ def create_keypoints_and_color_hist_db(db_folder):
     histogram = []
     
     for file2 in files:
-        st = time.time()
         img2 = cv.imread(db_folder + "/" + file2)
         img2 = cv.resize(img2, (500, 500))
+        img2 = cv.GaussianBlur(img2, (5, 5), 0)
+        
+        img = cv.imread(db_folder + "/zaal_1__IMG_20190323_111717__01.png")
+        orb = cv.ORB_create(500)
+        kp1, des1 = orb.detectAndCompute(img, None)
+        display("d", img2)
 
         # Initiate ORB detector, argument for number of keypoints
-        orb = cv.ORB_create(500)
+        orb = cv.ORB_create(100)
 
         # find the keypoints with ORB
         kp2, des2 = orb.detectAndCompute(img2, None)
@@ -208,6 +213,12 @@ def process_file(file, img, kp1, des1, histogram, i, kps, dess):
     kp2 = [cv.KeyPoint(x, y, size, angle, response, octave, class_id) for (x, y), size, angle, response, octave, class_id in kp_list] 
     des2 = dess[i]
     bf = cv.BFMatcher()
+    if des2 is None:
+        print("hier", des2)
+    des2 = des2.astype(np.float32)
+    des1 = des1.astype(np.float32)
+    # print(des1)
+    # print(des2)
     matches = bf.knnMatch(des1, des2, k=2)
     good = lowe_test(matches)
     score_matcher = calculate_homograhpy(good, kp1, kp2)
