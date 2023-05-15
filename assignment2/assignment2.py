@@ -178,17 +178,21 @@ def create_keypoints_and_color_hist_db(db_folder):
         img2 = cv.imread(db_folder + "/" + file2)
         img2 = cv.resize(img2, (500, 500))
         img2 = cv.GaussianBlur(img2, (5, 5), 0)
+        # img2 = cv.blur(img2, (5, 5))
         
-        img = cv.imread(db_folder + "/zaal_1__IMG_20190323_111717__01.png")
-        orb = cv.ORB_create(500)
-        kp1, des1 = orb.detectAndCompute(img, None)
-        display("d", img2)
+        # img = cv.imread(db_folder + "/zaal_1__IMG_20190323_111717__01.png")
+        # img = cv.resize(img, (500, 500))
+        # 
+        # kp1, des1 = orb.detectAndCompute(img, None)
 
         # Initiate ORB detector, argument for number of keypoints
-        orb = cv.ORB_create(100)
 
         # find the keypoints with ORB
+        orb = cv.ORB_create(500)
         kp2, des2 = orb.detectAndCompute(img2, None)
+        # bf = cv.BFMatcher()
+        # matches = bf.knnMatch(des1, des2, k=2)
+        
         dess.append(des2)
         kp_list = [(k.pt, k.size, k.angle, k.response, k.octave, k.class_id) for k in kp2]
         kps.append(kp_list)
@@ -213,12 +217,7 @@ def process_file(file, img, kp1, des1, histogram, i, kps, dess):
     kp2 = [cv.KeyPoint(x, y, size, angle, response, octave, class_id) for (x, y), size, angle, response, octave, class_id in kp_list] 
     des2 = dess[i]
     bf = cv.BFMatcher()
-    if des2 is None:
-        print("hier", des2)
-    des2 = des2.astype(np.float32)
-    des1 = des1.astype(np.float32)
-    # print(des1)
-    # print(des2)
+
     matches = bf.knnMatch(des1, des2, k=2)
     good = lowe_test(matches)
     score_matcher = calculate_homograhpy(good, kp1, kp2)
@@ -227,7 +226,7 @@ def process_file(file, img, kp1, des1, histogram, i, kps, dess):
     hist_blue2, hist_green2, hist_red2 = histogram_i[0], histogram_i[1], histogram_i[2]
     histogram_score = compare_histograms([hist_blue1, hist_green1, hist_red1], [hist_blue2, hist_green2, hist_red2])
     final_score = get_final_score(np.array([score_matcher, 1 - histogram_score]))
-    return final_score
+    return final_score, i
 
 def calculate_score_assignment2_multi(img, db_folder):
     st = time.time()
@@ -252,18 +251,20 @@ def calculate_score_assignment2_multi(img, db_folder):
         histogram = pickle.load(f)
 
     final_scores = []
+    indices = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = []
         for i, file in enumerate(files):
             future = executor.submit(process_file, file, img, kp1, des1, histogram, i, kps, dess)
             futures.append(future)
         for future in concurrent.futures.as_completed(futures):
-            final_scores.append(future.result())
+            final_scores.append(future.result()[0])
+            indices.append(future.result()[1])
 
     et = time.time()
     elapsed_time = et - st
     print('Execution time:', elapsed_time, 'seconds')
-    return final_scores, files   
+    return final_scores, np.array(files)[indices]   
 
 def calculate_score_assignment2(img, db_folder):
     st = time.time()
