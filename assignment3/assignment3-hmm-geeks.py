@@ -5,21 +5,160 @@ import seaborn as sns
 from hmmlearn import hmm
 import transition_matrix as tm
 import glob
+import json
+import os
+import cv2, time, math
+
+import sys, os
+sys.path.append(os.path.abspath(os.path.join('.')))
+import assignment1
+from assignment2.assignment2 import *
+
+states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
 
 
-def get_event_by_score(scores):
-    """
-    e1 = score in multiple rooms higher than 0.7
-    e2 = no score higher than 0.7
-    e3 = score higher than 0.7 and it's the correct room, and no other higher than 0.7
-    e4 = score higher than 0.7 and in different room, and no other higher than 0.7
-    
-    e1 and e2 are easy to know
-    e3 and e4 not, but we can assume that if the highest score is over a specific threshold, that means we are sure we matched correctly
-    If it's lower, we can say that there is a chance of x that the model didn't match correctly
-    Returns 0, 1, 2 or 3
-    """
-    pass
+def video_frame_process(video_path):
+    cap = cv2.VideoCapture(video_path)
+    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    f = 0
+    no_matched_found = 0
+    total_seconds = 0 # keep track of the total frames that was processed (can be converted to secs by dividing by fps)
+    last_decile = 0 # keep track of the last 10 seconds that was processed
+    scores_per_decile = {}
+    st = time.time()
+
+    found_observations = []
+    seconds_to_wait = 1 # wait x seconds before processing the next frame after a sharp frame
+    while True:
+        process = False
+        total_seconds += 1
+        # if total_seconds % 2 != 0:
+        #     continue
+        
+        flag, frame = cap.read()
+        if frame is None: # if video is over
+            break
+        if f < seconds_to_wait * fps:
+            f += 1
+        if f % (seconds_to_wait * fps) == 0:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            lol = cv2.Laplacian(gray, cv2.CV_64F).var() 
+            if lol > 30:
+                process = True
+                # Frame is not blurry
+            else:
+                continue
+
+        # wait until next sharp frame ( min 30 frames in between processing of sharp frames)
+        if process and f % (seconds_to_wait * fps) == 0:
+            f = 1
+            process = False
+            # print("processing frame")
+            second = total_seconds / fps # get the current second in the video
+            decile = math.floor(second / 10) * 10 # round to the nearest decile
+            if decile not in scores_per_decile.keys():
+                scores_per_decile[decile] = []
+            results = assignment1.process_single_image(frame, False)
+            for idx, extracted_painting in enumerate(results):
+                if idx > 2: # process max 2 paintings per frame
+                    continue
+                # cv2.imwrite(f'./dataset_video/painting_{idx}', extracted_painting)
+                scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
+                
+                canvas = np.zeros((600, 1000, 3), dtype=np.uint8)
+                
+                scores = np.array(scores)
+                ind = np.argpartition(scores, -2)[-2:]
+                top2 = scores[ind]
+                files = np.array(files)
+                files = files[ind]
+                scores_per_decile[decile].append({"score": top2[1], "file": files[1], "extracted": extracted_painting, "to_check": frame})
+                if last_decile == decile: # only if a new decile is reached, show the best results
+                    continue
+                
+                items = scores_per_decile.get(last_decile, [])
+                et = time.time()
+                elapsed_time = et - st
+                print('It took', elapsed_time, 'seconds to process the last', decile - last_decile ,'seconds')
+                
+                    
+                if len(items) == 0:
+                    amount_of_events = ((decile - last_decile) // 10)
+                    # hmm calculate
+                    for i in range(amount_of_events):
+                        found_observations.append("no_match")
+                        calculate_hmm(found_observations, "no_match", chances_FP, chances_TP)
+                    print("No paintings detected in the last", decile - last_decile , "seconds")
+                    scores_per_decile[decile] = []
+                    last_decile = decile # update the last decile
+                    st = time.time()
+                    continue
+                print("Currently in", decile, "seconds")
+                amount_of_deciles_without_paintings = ((decile - last_decile) // 10) - 1 # -1 because the last 10 secs a painting was detected, otherwise the code wouldn't reach here
+                no_matched_found += amount_of_deciles_without_paintings
+                    
+                # Find the item with the highest score
+                highest_score_item = max(items, key=lambda x: x["score"])
+
+                # Retrieve the desired information from the highest score item
+                highest_score = highest_score_item["score"]
+                file_name = highest_score_item["file"]
+                highest_extracted_painting = highest_score_item["extracted"]
+                highest_to_check = highest_score_item["to_check"]
+
+                
+                
+                # clear to save space
+                scores_per_decile[decile] = []
+                
+                # process next decile
+                last_decile = decile # update the last decile
+                
+                score_bin = math.floor(highest_score * 10) / 10
+                if score_bin == 1.0:
+                    score_bin = 0.9
+
+                # hmm calculate
+                zaal = get_zaal_by_filename(file_name)
+                found_observations.append(score_bin)
+                print("observations are", found_observations)
+                calculate_hmm(found_observations, zaal, chances_FP, chances_TP)
+                print("db match zaal", zaal)
+                st = time.time()
+                
+                img2 = cv2.imread("Database_paintings/Database/" + file_name) # DB foto highest
+                img2 = cv2.GaussianBlur(img2, (5, 5), 0)
+                img3 = highest_extracted_painting # extracted
+
+                img2 = cv2.resize(img2, (250, 250)) 
+                img3 = cv2.resize(img3, (250, 250))
+                
+                # img3 = cv2.resize(img3, (350, 250))
+
+                canvas = np.zeros((600, 800, 3), dtype=np.uint8)
+
+                img2 = cv2.resize(img2, (250, 250))
+
+                canvas[50:300, 50:300] = img3
+                cv2.putText(canvas, f"Extracted", (275, 650), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+                canvas[50:300, 350:600] = img2
+                cv2.putText(canvas, f"DB highest {round(highest_score, 2)}", (400, 350), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+                highest_to_check = cv2.resize(highest_to_check, (350, 250)) #  into shape (250,350,3)
+                canvas[350:600, 225:575] = highest_to_check
+
+
+                cv2.imshow("Display Images", canvas)
+                key = cv2.waitKey(0)
+                # Check the pressed key and do something based on it
+                while key != ord('y') and key != ord('n'):
+                    key = cv2.waitKey(0)
+                cv2.destroyAllWindows()
+            
+def get_zaal_by_filename(filename):
+    filename = filename.split("_")
+    return filename[1]
     
 def get_images_by_room(hidden_states, path="Database_paintings/Database"):
     zalen = np.array(states)[hidden_states]
@@ -28,56 +167,84 @@ def get_images_by_room(hidden_states, path="Database_paintings/Database"):
         images.append(glob.glob(f"{path}/[Zz]aal_{zaal}_*.png"))
     return images
 
+def calculate_hmm(detected_scores, detected_zaal, chances_FP, chances_TP):
+    observations = []
+    for score in detected_scores:
+        observations.append(translation_event[str(score)])
+    emission_probability = []
+    state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
+    for zaal in states:
+        if zaal == detected_zaal:
+            emission_probability.append(chances_TP)
+        else:
+            emission_probability.append(chances_FP)
     
-transition_probability = tm.transition_matrix
-print("\nTransition probability:\n", transition_probability)
+    emission_probability = np.array(emission_probability)
+    # print("\nEmission probability:\n", emission_probability)
+
+    print(emission_probability)
+
+    observations_sequence = np.array([observations]).reshape(-1, 1)
+    print("observation sequence:", observations_sequence)
+    model = hmm.CategoricalHMM(n_components=n_states)
+    
+    model.startprob_ = state_probability
+    model.transmat_ = tm.transition_matrix
+    model.emissionprob_ = emission_probability
+    hidden_states = model.predict(observations_sequence)
+    hidden_states_probs = model.predict_proba(observations_sequence)
+    states_np = np.array(states)
+    print("Most likely hidden states:", hidden_states)
+    print("zalen zijn", states_np[hidden_states])
+    # print("Probabilities of each state:", hidden_states_probs)
+    
+    return hidden_states
+                
+if __name__ == "__main__":
 
 
+    video_path = "MSK_03.mp4"
+    filename_TP = f'labels/{os.path.basename(video_path)}_TP.json'
+    filename_FP = f'labels/{os.path.basename(video_path)}_FP.json'
+    filename_no_match = f'labels/{os.path.basename(video_path)}_no_match.txt'
 
-# Define the state space
-states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
-n_states = len(states)
-print('Number of hidden states :',n_states)
-# Define the observation space
-observation_space = ["e1", "e2", "e3", "e4"]
-n_observations = len(observation_space)
-print('Number of observations  :',n_observations)
+    with open(filename_TP, 'r') as file:
+        score_TP = json.load(file)
+        
+    with open(filename_FP, 'r') as file:
+        score_FP = json.load( file)
+    
+    with open(filename_no_match, "r") as file:
+        no_matches = file.readline()
+        
+    score_FP["no_match"] = no_matches
+    score_TP["no_match"] = no_matches
+    score_TP = dict([a, int(x)] for a, x in score_TP.items())
+    score_FP = dict([a, int(x)] for a, x in score_FP.items())
+    chances_TP = [value/sum(score_TP.values()) for key, value in score_TP.items()]
+    chances_FP = [value/sum(score_FP.values()) for key, value in score_FP.items()]
+    
+    print(chances_TP)
+    print(chances_FP)
 
-# Define the initial state distribution
-state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
+    # Define the initial state distribution
 
+    # Define the state space
+    n_states = len(states)
+    # print('Number of hidden states :',n_states)
+    # Define the observation space
+    # observation_space = ["e1", "e2", "e3", "e4"]
+    n_observations = 11
 
-# Testen met andere initial state distribution
-
-# state_probability[len(state_probability) - 2] = 0.8
-# state_probability[0:len(state_probability)-2] = 0.2 / (len(states)-1)
-# state_probability[len(state_probability)-1] = 0.2 / (len(states)-1)
-# print("sum is", np.sum(state_probability))
-print("State probability: ", state_probability)
-# Define the observation likelihoods
-
-event_probabilties = np.array([[0.25, 0.25, 0.25, 0.25]])
-print("Event probabilities:\n", event_probabilties)
-
-emission_probability = np.vstack([event_probabilties] * len(states))
-print("\nEmission probability:\n", emission_probability)
-
-
-model = hmm.CategoricalHMM(n_components=n_states)
-model.startprob_ = state_probability
-model.transmat_ = transition_probability
-model.emissionprob_ = emission_probability
-
-observations_sequence = np.array([2, 1, 3, 0, 0, 0]).reshape(-1, 1)
-
-hidden_states = model.predict(observations_sequence)
-print("Most likely hidden states:", hidden_states)
-
-
-
-
-
-
+    # print('Number of observations  :',n_observations)
+    translation_event = {"0.0": 0, "0.1": 1, "0.2": 2, "0.3": 3, "0.4": 4, "0.5": 5, "0.6": 6, "0.7": 7, "0.8": 8, "0.9": 9, "no_match": 10}
+    transition_probability = tm.transition_matrix
+    print("\nTransition probability:\n", transition_probability)
+    state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
+    # model = hmm.CategoricalHMM(n_components=n_states)
+    # model.startprob_ = state_probability
+    # model.transmat_ = transition_probability
+    video_frame_process("videos/MSK_03.mp4")
 
 
 # https://www.geeksforgeeks.org/hidden-markov-model-in-machine-learning/
