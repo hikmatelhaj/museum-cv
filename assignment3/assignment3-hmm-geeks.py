@@ -236,12 +236,12 @@ if __name__ == "__main__":
     # model = hmm.CategoricalHMM(n_components=n_states)
     # model.startprob_ = state_probability
     # model.transmat_ = transition_probability
-    # video_frame_process("videos/MSK_03.mp4", state_probability)
+    video_frame_process("videos/MSK_03.mp4", state_probability)
     # while True:
     #     zaal = input("Enter zaal: ")
     #     score = input("Enter score: ")
     #     calculate_hmm(score, zaal, chances_FP, chances_TP, state_probability)
-    #     # print("detected zaal", detected_zaal)
+        # print("detected zaal", detected_zaal)
     
 
 
