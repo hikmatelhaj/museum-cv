@@ -17,9 +17,10 @@ from assignment2.assignment2 import *
 states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
 
 
-def video_frame_process(video_path):
+def video_frame_process(video_path, state_probability):
     cap = cv2.VideoCapture(video_path)
     fps = int(cap.get(cv2.CAP_PROP_FPS))
+    last_probabilities = state_probability
     f = 0
     no_matched_found = 0
     total_seconds = 0 # keep track of the total frames that was processed (can be converted to secs by dividing by fps)
@@ -27,7 +28,6 @@ def video_frame_process(video_path):
     scores_per_decile = {}
     st = time.time()
 
-    found_observations = []
     seconds_to_wait = 1 # wait x seconds before processing the next frame after a sharp frame
     while True:
         process = False
@@ -83,12 +83,10 @@ def video_frame_process(video_path):
                 
                     
                 if len(items) == 0:
-                    amount_of_events = ((decile - last_decile) // 10)
                     # hmm calculate
-                    for i in range(amount_of_events):
-                        found_observations.append("no_match")
-                        calculate_hmm(found_observations, "no_match", chances_FP, chances_TP)
+                    last_probabilities, zaal_predict = calculate_hmm("no_match", "no_match", chances_FP, chances_TP, last_probabilities)
                     print("No paintings detected in the last", decile - last_decile , "seconds")
+                    print("Predicted to be in zaal", zaal_predict)
                     scores_per_decile[decile] = []
                     last_decile = decile # update the last decile
                     st = time.time()
@@ -120,9 +118,8 @@ def video_frame_process(video_path):
 
                 # hmm calculate
                 zaal = get_zaal_by_filename(file_name)
-                found_observations.append(score_bin)
-                print("observations are", found_observations)
-                calculate_hmm(found_observations, zaal, chances_FP, chances_TP)
+                last_probabilities, zaal_predict = calculate_hmm(score_bin, zaal, chances_FP, chances_TP, last_probabilities)
+                print("Predicted", zaal_predict)
                 print("db match zaal", zaal)
                 st = time.time()
                 
@@ -167,12 +164,10 @@ def get_images_by_room(hidden_states, path="Database_paintings/Database"):
         images.append(glob.glob(f"{path}/[Zz]aal_{zaal}_*.png"))
     return images
 
-def calculate_hmm(detected_scores, detected_zaal, chances_FP, chances_TP):
-    observations = []
-    for score in detected_scores:
-        observations.append(translation_event[str(score)])
+def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_probs):
+    observation = translation_event[str(detected_score)]
     emission_probability = []
-    state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
+
     for zaal in states:
         if zaal == detected_zaal:
             emission_probability.append(chances_TP)
@@ -182,23 +177,20 @@ def calculate_hmm(detected_scores, detected_zaal, chances_FP, chances_TP):
     emission_probability = np.array(emission_probability)
     # print("\nEmission probability:\n", emission_probability)
 
-    print(emission_probability)
+    
 
-    observations_sequence = np.array([observations]).reshape(-1, 1)
+    observations_sequence = np.array([observation]).reshape(-1, 1)
     print("observation sequence:", observations_sequence)
     model = hmm.CategoricalHMM(n_components=n_states)
     
-    model.startprob_ = state_probability
+    model.startprob_ = start_probs
     model.transmat_ = tm.transition_matrix
     model.emissionprob_ = emission_probability
     hidden_states = model.predict(observations_sequence)
     hidden_states_probs = model.predict_proba(observations_sequence)
-    states_np = np.array(states)
-    print("Most likely hidden states:", hidden_states)
-    print("zalen zijn", states_np[hidden_states])
-    # print("Probabilities of each state:", hidden_states_probs)
-    
-    return hidden_states
+    print("Most likely hidden states:", hidden_states, "in zaal", states[hidden_states[0]])
+    print("Probabilities of each state:", hidden_states_probs)
+    return np.squeeze(hidden_states_probs), states[hidden_states[0]]
                 
 if __name__ == "__main__":
 
@@ -244,7 +236,19 @@ if __name__ == "__main__":
     # model = hmm.CategoricalHMM(n_components=n_states)
     # model.startprob_ = state_probability
     # model.transmat_ = transition_probability
-    video_frame_process("videos/MSK_03.mp4")
+    # video_frame_process("videos/MSK_03.mp4", state_probability)
+    # while True:
+    #     zaal = input("Enter zaal: ")
+    #     score = input("Enter score: ")
+    #     calculate_hmm(score, zaal, chances_FP, chances_TP, state_probability)
+    #     # print("detected zaal", detected_zaal)
+    
+
+
+
+
+
+
 
 
 # https://www.geeksforgeeks.org/hidden-markov-model-in-machine-learning/

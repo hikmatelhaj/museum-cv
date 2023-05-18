@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-probability_same_room = 0.7
-probability_next_room = 0.2
-probability_next_next_room = 0.1
+probability_same_room = 0.5
+probability_next_room = 0.3
+probability_next_next_room = 0.2
 
 matrix = np.identity(41)
 matrix *= probability_same_room
