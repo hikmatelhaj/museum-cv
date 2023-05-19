@@ -1,6 +1,6 @@
 import cv2 
 import numpy as np
-import assignment1
+from Extractor import *
 from assignment2.assignment2 import *
 import math
 import json
@@ -44,6 +44,8 @@ def video_frame_process(video_path):
     bins_TP[0.9] = 0
     scores_per_decile = {}
     st = time.time()
+
+    extractor = Extractor()
     
     
     filename_TP = f'labels/{os.path.basename(video_path)}_TP.json'
@@ -88,7 +90,7 @@ def video_frame_process(video_path):
             decile = math.floor(second / 10) * 10 # round to the nearest decile
             if decile not in scores_per_decile.keys():
                 scores_per_decile[decile] = []
-            results = assignment1.process_single_image(frame, False)
+            results = extractor.extract_and_crop_image(frame, False)
             for idx, extracted_painting in enumerate(results):
                 if idx > 2: # process max 2 paintings per frame
                     continue

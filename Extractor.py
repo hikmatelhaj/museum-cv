@@ -74,7 +74,7 @@ class Extractor:
         for polygon in polygons:
             # draw if necessary
             if drawPolygons:
-                img = cv.polylines(img, [polygon], True, (0, 0, 255), 10)
+                image = cv.polylines(image, [polygon], True, (0, 0, 255), 10)
 
             # calculate new coordinatees
             maxW = max(polygon[:, 0]) - min(polygon[:, 0])
@@ -88,7 +88,7 @@ class Extractor:
             # transformation of image
             transform = cv.getPerspectiveTransform(
                 np.float32(polygon), bounding_box)
-            result = cv.warpPerspective(img, transform, (maxW, maxH))
+            result = cv.warpPerspective(image, transform, (maxW, maxH))
 
             # add new painting image to result list
             result_imgs.append(result)
