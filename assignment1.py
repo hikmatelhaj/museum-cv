@@ -122,6 +122,7 @@ def loop_for_assignment_2(drawPolygons=False):
     root_path = "Results_assignment2"
     make_directories(root_path)
     frames_path = "Database/Computervisie 2020 Project Database/test_pictures_msk"        # path of unprocessed images
+    # frames_path = "wrong_images"
     counter = 1
     for img_path in glob.glob(f"{frames_path}/*.jpg"):
         file_name = img_path.split("\\")[-1]
@@ -131,11 +132,10 @@ def loop_for_assignment_2(drawPolygons=False):
         results = process_single_image(img, drawPolygons)
         print("Done processing")
         for idx, extracted_painting in enumerate(results):
-            subfolder = root_path + "/" + str(counter)
-            make_directories(subfolder)
-            counter += 1
-            scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
             
+            
+            
+            scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
             
             
             scores = np.array(scores)
@@ -143,6 +143,9 @@ def loop_for_assignment_2(drawPolygons=False):
             ind = np.argpartition(scores, -5)[-5:]
             top5 = scores[ind]
             files = np.array(files)
+            subfolder = root_path + "/" + str(counter) + "_" + str(round(top5[-1], 3))
+            counter += 1
+            make_directories(subfolder)
             for i, matching_file in enumerate(files[ind]):
                 cv.imwrite(f"{subfolder}/match_{top5[i]}_{matching_file}.png", cv.imread("Database_paintings/Database/" + matching_file))
             cv.imwrite(f"{subfolder}/test_image_{matching_file}.png", img)
@@ -190,5 +193,6 @@ def loop_analytics():
 
 
 if __name__ == "__main__":
+    loop_for_assignment_2()
     # loop_for_assignment_2()
-    create_keypoints_and_color_hist_db("Database_paintings/Database")
+    # create_keypoints_and_color_hist_db("Database_paintings/Database")
