@@ -11,7 +11,10 @@ from scipy.spatial.distance import euclidean
 import time
 import pickle
 import concurrent.futures
-
+import glob
+import sys
+sys.path.append(os.path.abspath(os.path.join('.')))
+# from assignment1 import process_single_imageprocess_single_image
 
 def display(title, img):
     cv.imshow(title, img)
@@ -146,7 +149,7 @@ def calculate_homograhpy(good: list[cv.DMatch], kp1: tuple[list[cv.KeyPoint], li
             [kp2[m[0].trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
         # Estimate transformation matrix using RANSAC
-        M, mask = cv.findHomography(src_pts, dst_pts, cv.RANSAC, 5.0)
+        M, mask = cv.findHomography(src_pts, dst_pts, cv.USAC_FAST, 5.0)
 
         # Count inliers
         inliers = np.sum(mask)
@@ -177,18 +180,13 @@ def create_keypoints_and_color_hist_db(db_folder):
     for file2 in files:
         img2 = cv.imread(db_folder + "/" + file2)
         img2 = cv.resize(img2, (500, 500))
+        # this works
         img2 = cv.GaussianBlur(img2, (5, 5), 0)
-        # img2 = cv.blur(img2, (5, 5))
-        
-        # img = cv.imread(db_folder + "/zaal_1__IMG_20190323_111717__01.png")
-        # img = cv.resize(img, (500, 500))
-        # 
-        # kp1, des1 = orb.detectAndCompute(img, None)
+
 
         # Initiate ORB detector, argument for number of keypoints
-
         # find the keypoints with ORB
-        orb = cv.ORB_create(500)
+        orb = cv.ORB_create(100)
         kp2, des2 = orb.detectAndCompute(img2, None)
         # bf = cv.BFMatcher()
         # matches = bf.knnMatch(des1, des2, k=2)
@@ -235,7 +233,7 @@ def calculate_score_assignment2_multi(img, db_folder):
     
     # Initiate ORB detector, argument for number of keypoints
     # find the keypoints with ORB
-    orb = cv.ORB_create(500)
+    orb = cv.ORB_create(100)
     kp1, des1 = orb.detectAndCompute(img, None)
     
     histogram_scores = []
@@ -273,7 +271,7 @@ def calculate_score_assignment2(img, db_folder):
     
     # Initiate ORB detector, argument for number of keypoints
     # find the keypoints with ORB
-    orb = cv.ORB_create(500)
+    orb = cv.ORB_create(100)
     kp1, des1 = orb.detectAndCompute(img, None)
     
     histogram_scores = []
@@ -326,8 +324,42 @@ def calculate_score_assignment2(img, db_folder):
     print('Execution time:', elapsed_time, 'seconds')
     return final_scores, files
 
+def make_directories(path):
+    try: 
+        os.mkdir(path) 
+    except OSError as error: 
+        pass
 
-
+# def evaluate_dataset(drawPolygons=False):
+#     root_path = "Results_assignment2"
+#     make_directories(root_path)
+#     frames_path = "Database/Computervisie 2020 Project Database/dataset_pictures_msk"        # path of unprocessed images
+#     counter = 1
+#     for zaal in os.walk(frames_path):
+#         for img_path in glob.glob(f"{frames_path}/{zaal}/*.jpg"):
+#             file_name = img_path.split("\\")[-1]
+#             print(f"Processing {img_path}")
+#             img = cv.imread(img_path)
+            
+#             results = process_single_image(img, drawPolygons)
+#             print("Done processing")
+#             for idx, extracted_painting in enumerate(results):
+#                 subfolder = root_path + "/" + str(counter)
+#                 make_directories(subfolder)
+#                 counter += 1
+#                 scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
+                
+                
+                
+#                 scores = np.array(scores)
+#                 print(np.max(scores))
+#                 ind = np.argpartition(scores, -5)[-5:]
+#                 top5 = scores[ind]
+#                 files = np.array(files)
+#                 for i, matching_file in enumerate(files[ind]):
+#                     cv.imwrite(f"{subfolder}/match_{top5[i]}_{matching_file}.png", cv.imread("Database_paintings/Database/" + matching_file))
+#                 cv.imwrite(f"{subfolder}/test_image_{matching_file}.png", img)
+#                 cv.imwrite(f"{subfolder}/extracted_painting.png", extracted_painting)
 
 
 
