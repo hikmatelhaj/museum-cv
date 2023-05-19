@@ -5,6 +5,7 @@ import pandas as pd
 import glob
 import ast
 from shapely.geometry import Polygon
+from shapely import get_coordinates
 import os
 
 
@@ -34,8 +35,15 @@ class Extractor:
             if len(polygon) == 4:
                 # only rectangular shapes
                 polygon = polygon.reshape(4, 2)
-                # too small polygons are filtered
-                if Polygon(polygon).area > 15000:
+                polygonGeometry = Polygon(polygon)
+
+                # this will check if the convex hull of the extracted polygon corresponds with the extracted polygon (so no weird shapes will be extracted)
+                polygonConvexHull = polygonGeometry.convex_hull
+                invalidArea = ((polygonGeometry.area + 150 < polygonConvexHull.area) or (polygonGeometry.area - 150 > polygonConvexHull.area))
+
+                
+                # too small polygons or weird shapes are filtered
+                if (polygonGeometry.area > 15000) and (not invalidArea):
                     image = cv.polylines(
                         image, [polygon], True, (0, 0, 255), 10)
                     cut_list.append(polygon)
