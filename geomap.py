@@ -43,8 +43,8 @@ def showHeatmap(probs):
     cbar = fig.colorbar(bar_info)
     plt.show()
 
-probabs = pd.read_csv("probs.csv", delimiter=";")
-showHeatmap(probabs)
+# probabs = pd.read_csv("probs.csv", delimiter=";")
+# showHeatmap(probabs)
 
 
 

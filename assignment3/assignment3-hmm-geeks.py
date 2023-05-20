@@ -88,10 +88,16 @@ def video_frame_process(video_path, state_probability):
                 if len(items) == 0:
                     # hmm calculate
                     found_observations.append("no_match")
-                    last_probabilities, zaal_predict = calculate_hmm("no_match", "no_match", chances_FP, chances_TP, last_probabilities)
-                    calculate_hmm_full_path(found_observations, zaal, chances_FP, chances_TP)
+                    try:
+                        prev = found_observations[-2]
+                    except:
+                        prev = found_observations[-1]
+                    last_probabilities, zaal_predict, df = calculate_hmm("no_match", "no_match", chances_FP, chances_TP, last_probabilities, prev)
+                    
+                    # calculate_hmm_full_path(found_observations, zaal, chances_FP, chances_TP)
                     print("No paintings detected in the last", decile - last_decile , "seconds")
                     print("Predicted to be in zaal", zaal_predict)
+                    showHeatmap(df)
                     scores_per_decile[decile] = []
                     last_decile = decile # update the last decile
                     st = time.time()
@@ -124,11 +130,17 @@ def video_frame_process(video_path, state_probability):
                 # hmm calculate
                 zaal = get_zaal_by_filename(file_name)
                 found_observations.append(score_bin)
-                last_probabilities, zaal_predict = calculate_hmm(score_bin, zaal, chances_FP, chances_TP, last_probabilities)
+                try:
+                    prev = found_observations[-2]
+                except:
+                    prev = found_observations[-1]
+                last_probabilities, zaal_predict, df = calculate_hmm(score_bin, zaal, chances_FP, chances_TP, last_probabilities, prev)
+                
                 print("Predicted", zaal_predict)
                 print("db match zaal", zaal)
-                calculate_hmm_full_path(found_observations, zaal, chances_FP, chances_TP)
+                # calculate_hmm_full_path(found_observations, zaal, chances_FP, chances_TP)
                 st = time.time()
+                
                 
                 img2 = cv2.imread("Database_paintings/Database/" + file_name) # DB foto highest
                 img2 = cv2.GaussianBlur(img2, (5, 5), 0)
@@ -159,6 +171,7 @@ def video_frame_process(video_path, state_probability):
                 while key != ord('y') and key != ord('n'):
                     key = cv2.waitKey(0)
                 cv2.destroyAllWindows()
+                showHeatmap(df)
             
 def get_zaal_by_filename(filename):
     filename = filename.split("_")
@@ -171,7 +184,7 @@ def get_images_by_room(hidden_states, path="Database_paintings/Database"):
         images.append(glob.glob(f"{path}/[Zz]aal_{zaal}_*.png"))
     return images
 
-def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_probs):
+def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_probs, prev_obs):
     observation = translation_event[str(detected_score)]
     emission_probability = []
 
@@ -184,25 +197,21 @@ def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_p
     emission_probability = np.array(emission_probability)
     # print("\nEmission probability:\n", emission_probability)
 
-    
-
-    observations_sequence = np.array([observation]).reshape(-1, 1)
+    observations_sequence = np.array([translation_event[str(prev_obs)], observation]).reshape(-1, 1)
     # print("observation sequence:", observations_sequence)
     model = hmm.CategoricalHMM(n_components=n_states)
-    
     model.startprob_ = start_probs
     model.transmat_ = tm.transition_matrix
     model.emissionprob_ = emission_probability
     hidden_states = model.predict(observations_sequence)
-    hidden_states_probs = model.predict_proba(observations_sequence)
-    print("Most likely hidden states:", hidden_states, "in zaal", states[hidden_states[0]])
-    print("Probabilities of each state:", hidden_states_probs)
+    hidden_states_probs = model.predict_proba(observations_sequence)[1]
+    # print("Most likely hidden states:", hidden_states, "in zaal", states[hidden_states[0]])
+    # print("Probabilities of each state:", hidden_states_probs)
     
-    data = {"State": states, "Probability": hidden_states_probs}
+    data = {"Hall": states, "probability": np.squeeze(hidden_states_probs)}
     df = pd.DataFrame(data)
-    showHeatmap(df)
     
-    return np.squeeze(hidden_states_probs), states[hidden_states[0]]
+    return np.squeeze(hidden_states_probs), states[hidden_states[0]], df
       
       
 def calculate_hmm_full_path(detected_scores, detected_zaal, chances_FP, chances_TP):
@@ -232,8 +241,8 @@ def calculate_hmm_full_path(detected_scores, detected_zaal, chances_FP, chances_
     print("Full path, zalen zijn", states_np[hidden_states])
     # print("Probabilities of each state:", hidden_states_probs)
     
-    data = {"State": states, "Probability": hidden_states_probs}
-    df = pd.DataFrame(data)
+    # data = {"State": states, "Probability": hidden_states_probs}
+    # df = pd.DataFrame(data)
     # showHeatmap(df)
     
     
@@ -242,7 +251,7 @@ def calculate_hmm_full_path(detected_scores, detected_zaal, chances_FP, chances_
 if __name__ == "__main__":
 
 
-    video_path = "MSK_03.mp4"
+    video_path = "MSK_05.mp4"
     filename_TP = f'labels/{os.path.basename(video_path)}_TP.json'
     filename_FP = f'labels/{os.path.basename(video_path)}_FP.json'
     filename_no_match = f'labels/{os.path.basename(video_path)}_no_match.txt'
@@ -283,6 +292,7 @@ if __name__ == "__main__":
     # model = hmm.CategoricalHMM(n_components=n_states)
     # model.startprob_ = state_probability
     # model.transmat_ = transition_probability
+    model = hmm.CategoricalHMM(n_components=n_states)
     video_frame_process("videos/MSK_05.mp4", state_probability)
     # while True:
     #     zaal = input("Enter zaal: ")
