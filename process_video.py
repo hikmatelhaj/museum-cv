@@ -11,6 +11,12 @@ def show_to_screen(img, title="image"):
     cv2.destroyAllWindows()
     
 
+def make_directories(path):
+    try: 
+        os.mkdir(path) 
+    except OSError as error: 
+        pass
+    
 def video_frame_process(video_path):
     cap = cv2.VideoCapture(video_path)
     fps = int(cap.get(cv2.CAP_PROP_FPS))
@@ -47,10 +53,10 @@ def video_frame_process(video_path):
 
     extractor = Extractor()
     
-    
-    filename_TP = f'labels/{os.path.basename(video_path)}_TP.json'
-    filename_FP = f'labels/{os.path.basename(video_path)}_FP.json'
-    filename_no_match = f'labels/{os.path.basename(video_path)}_no_match.txt'
+    make_directories(f'labels/{os.path.basename(video_path)}')
+    filename_TP = f'labels/{os.path.basename(video_path)}/{os.path.basename(video_path)}_TP.json'
+    filename_FP = f'labels/{os.path.basename(video_path)}/{os.path.basename(video_path)}_FP.json'
+    filename_no_match = f'labels/{os.path.basename(video_path)}/{os.path.basename(video_path)}_no_match.txt'
     with open(filename_TP, 'w') as file:
         json.dump(bins_TP, file)
         
@@ -207,7 +213,7 @@ def video_frame_process(video_path):
                 st = time.time()
             
 
-video_frame_process("videos/MSK_05.mp4")
+video_frame_process("videos/MSK_03.mp4")
 
 
 

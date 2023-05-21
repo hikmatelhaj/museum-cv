@@ -36,14 +36,15 @@ print(hidden_states_probs)
 #     df = pd.DataFrame(data)
 #     showHeatmap(df)
 
-while True:
-    obs = np.array([2, 2]).reshape(-1, 1)
-    model = hmm.CategoricalHMM(n_components=n_states)
-    model.startprob_ = start_probs
-    model.transmat_ = tm.transition_matrix
-    model.emissionprob_ = emission_probability
-    start_probs = np.squeeze(model.predict_proba(obs))[1]
-    print(start_probs)
-    data = {"Hall": states, "probability": start_probs}
-    df = pd.DataFrame(data)
-    showHeatmap(df)
+# while True:
+#     obs = np.array([2]).reshape(-1, 1)
+#     model = hmm.CategoricalHMM(n_components=n_states)
+#     model.startprob_ = start_probs
+#     model.transmat_ = tm.transition_matrix
+#     model.emissionprob_ = emission_probability
+#     model.fit(obs)
+#     start_probs = np.squeeze(model.predict_proba(obs))
+#     print(start_probs)
+#     data = {"Hall": states, "probability": start_probs}
+#     df = pd.DataFrame(data)
+#     showHeatmap(df)

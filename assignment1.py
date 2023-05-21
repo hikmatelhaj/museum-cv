@@ -193,6 +193,6 @@ def loop_analytics():
 
 
 if __name__ == "__main__":
-    loop_for_assignment_2()
     # loop_for_assignment_2()
+    loop_for_assignment_2()
     # create_keypoints_and_color_hist_db("Database_paintings/Database")

@@ -15,6 +15,7 @@ sys.path.append(os.path.abspath(os.path.join('.')))
 import assignment1
 from assignment2.assignment2 import *
 from geomap import showHeatmap
+from Extractor import *
 
 states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
 
@@ -30,6 +31,8 @@ def video_frame_process(video_path, state_probability):
     scores_per_decile = {}
     st = time.time()
     found_observations = []
+    
+    extractor = Extractor()
     
     seconds_to_wait = 1 # wait x seconds before processing the next frame after a sharp frame
     while True:
@@ -61,7 +64,7 @@ def video_frame_process(video_path, state_probability):
             decile = math.floor(second / 10) * 10 # round to the nearest decile
             if decile not in scores_per_decile.keys():
                 scores_per_decile[decile] = []
-            results = assignment1.process_single_image(frame, False)
+            results = extractor.extract_and_crop_image(frame, False) # assignment1.process_single_image(frame, False)
             for idx, extracted_painting in enumerate(results):
                 if idx > 2: # process max 2 paintings per frame
                     continue
@@ -92,8 +95,9 @@ def video_frame_process(video_path, state_probability):
                         prev = found_observations[-2]
                     except:
                         prev = found_observations[-1]
+                        
                     last_probabilities, zaal_predict, df = calculate_hmm("no_match", "no_match", chances_FP, chances_TP, last_probabilities, prev)
-                    
+                
                     # calculate_hmm_full_path(found_observations, zaal, chances_FP, chances_TP)
                     print("No paintings detected in the last", decile - last_decile , "seconds")
                     print("Predicted to be in zaal", zaal_predict)
@@ -188,15 +192,17 @@ def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_p
     observation = translation_event[str(detected_score)]
     emission_probability = []
 
-    for zaal in states:
-        if zaal == detected_zaal:
-            emission_probability.append(chances_TP)
-        else:
-            emission_probability.append(chances_FP)
+    if detected_zaal == "no_match":
+        emission_probability = np.empty((len(states), len(states))); emission_probability.fill(1/len(states))
+    else:
+        for zaal in states:
+            if zaal == detected_zaal:
+                emission_probability.append(chances_TP)
+            else:
+                emission_probability.append(chances_FP)
     
-    emission_probability = np.array(emission_probability)
+        emission_probability = np.array(emission_probability)
     # print("\nEmission probability:\n", emission_probability)
-
     observations_sequence = np.array([translation_event[str(prev_obs)], observation]).reshape(-1, 1)
     # print("observation sequence:", observations_sequence)
     model = hmm.CategoricalHMM(n_components=n_states)
@@ -210,7 +216,6 @@ def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_p
     
     data = {"Hall": states, "probability": np.squeeze(hidden_states_probs)}
     df = pd.DataFrame(data)
-    
     return np.squeeze(hidden_states_probs), states[hidden_states[0]], df
       
       
@@ -251,10 +256,9 @@ def calculate_hmm_full_path(detected_scores, detected_zaal, chances_FP, chances_
 if __name__ == "__main__":
 
 
-    video_path = "MSK_05.mp4"
-    filename_TP = f'labels/{os.path.basename(video_path)}_TP.json'
-    filename_FP = f'labels/{os.path.basename(video_path)}_FP.json'
-    filename_no_match = f'labels/{os.path.basename(video_path)}_no_match.txt'
+    filename_TP = f'labels/final_TP.json'
+    filename_FP = f'labels/final_FP.json'
+    filename_no_match = f'labels/final_no_match.txt'
 
     with open(filename_TP, 'r') as file:
         score_TP = json.load(file)
@@ -285,7 +289,7 @@ if __name__ == "__main__":
     n_observations = 11
 
     # print('Number of observations  :',n_observations)
-    translation_event = {"0.0": 0, "0.1": 1, "0.2": 2, "0.3": 3, "0.4": 4, "0.5": 5, "0.6": 6, "0.7": 7, "0.8": 8, "0.9": 9, "no_match": 10}
+    translation_event = {"0.0": 0, "0.1": 1, "0.2": 2, "0.3": 3, "0.4": 4, "0.5": 5, "0.6": 6, "0.7": 7, "0.8": 8, "0.9": 9, "no_match": 0}
     transition_probability = tm.transition_matrix
     print("\nTransition probability:\n", transition_probability)
     state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
@@ -293,7 +297,7 @@ if __name__ == "__main__":
     # model.startprob_ = state_probability
     # model.transmat_ = transition_probability
     model = hmm.CategoricalHMM(n_components=n_states)
-    video_frame_process("videos/MSK_05.mp4", state_probability)
+    video_frame_process("videos/MSK_17.mp4", state_probability)
     # while True:
     #     zaal = input("Enter zaal: ")
     #     score = input("Enter score: ")
