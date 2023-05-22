@@ -9,7 +9,7 @@ import json
 import os
 import cv2, time, math
 import pandas as pd
-from Rectifier import Rectifier
+
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('.')))
@@ -17,6 +17,7 @@ import assignment1
 from assignment2.assignment2 import *
 from geomap import showHeatmap
 from Extractor import *
+from Rectifier import Rectifier
 
 states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
 
@@ -216,14 +217,13 @@ def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_p
     model.startprob_ = start_probs
     model.transmat_ = tm.transition_matrix
     model.emissionprob_ = emission_probability
-    hidden_states = model.predict(observations_sequence)
+    hidden_states = model.predict(observations_sequence)[1]
     hidden_states_probs = model.predict_proba(observations_sequence)[1]
     # print("Most likely hidden states:", hidden_states, "in zaal", states[hidden_states[0]])
     # print("Probabilities of each state:", hidden_states_probs)
-    
     data = {"Hall": states, "probability": np.squeeze(hidden_states_probs)}
     df = pd.DataFrame(data)
-    return np.squeeze(hidden_states_probs), states[hidden_states[0]], df
+    return np.squeeze(hidden_states_probs), states[hidden_states], df
       
       
 # def calculate_hmm_full_path(detected_scores, detected_zaal, chances_FP, chances_TP):
@@ -290,7 +290,7 @@ if __name__ == "__main__":
     
     # Define the initial state distribution: every state is equally likely
     state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
-    video_frame_process("videos/MSK_17.mp4", state_probability, False, "calibration_W")
+    video_frame_process("videos/MSK_07.mp4", state_probability, False, "calibration_W")
 
 
 

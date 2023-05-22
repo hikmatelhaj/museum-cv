@@ -50,6 +50,14 @@ print(bins_FP)
 print(bins_TP)
 print(no_matches)
 
+for key, value in bins_FP.items():
+    if value == 0:
+        bins_FP[key] = 1
+        
+for key, value in bins_TP.items():
+    if value == 0:
+        bins_TP[key] = 1
+
 filename_TP = f'labels/final_TP.json'
 filename_FP = f'labels/final_FP.json'
 filename_no_match = f'labels/final_no_match.txt'
