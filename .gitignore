@@ -4,3 +4,5 @@ Database_paintings/
 Results_assignment2/
 **/__pycache__/
 videos/
+evaluation.ipynb
+test_evaluation.pkl

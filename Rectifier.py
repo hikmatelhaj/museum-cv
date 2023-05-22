@@ -84,7 +84,8 @@ class Rectifier:
             self.cam_mtx = pickle.load(mtx_file)
         with open(f"./calibration/{filename_prefix}_dist", "rb") as dist_file:
             self.dist_coeff = pickle.load(dist_file)
-
+        self.calibrated = True
+        
     def process_image(self, image):
         """
         Distort a single image

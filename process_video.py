@@ -1,6 +1,7 @@
 import cv2 
 import numpy as np
 from Extractor import *
+from Rectifier import Rectifier
 from assignment2.assignment2 import *
 import math
 import json
@@ -17,9 +18,14 @@ def make_directories(path):
     except OSError as error: 
         pass
     
-def video_frame_process(video_path):
+def video_frame_process(video_path, gopro=False, type="calibration_W"):
     cap = cv2.VideoCapture(video_path)
     fps = int(cap.get(cv2.CAP_PROP_FPS))
+    
+    if gopro:
+        rectifier = Rectifier()
+        rectifier.load_calibration(type)
+        print("calibrated")
 
     f = 0
     no_matched_found = 0
@@ -79,6 +85,8 @@ def video_frame_process(video_path):
         if f < seconds_to_wait * fps:
             f += 1
         if f % (seconds_to_wait * fps) == 0:
+            if gopro:
+                frame = rectifier.process_image(frame)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             lol = cv2.Laplacian(gray, cv2.CV_64F).var() 
             if lol > 30:
@@ -104,6 +112,10 @@ def video_frame_process(video_path):
                 scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
                 
                 canvas = np.zeros((600, 1000, 3), dtype=np.uint8)
+                # cv2.imshow("extracted_painting", extracted_painting)
+                # cv2.imshow("frame", frame)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
                 
                 scores = np.array(scores)
                 ind = np.argpartition(scores, -2)[-2:]
@@ -213,4 +225,4 @@ def video_frame_process(video_path):
                 st = time.time()
             
 
-video_frame_process("videos/MSK_08.mp4")
+video_frame_process("videos/MSK_11.mp4", False, "calibration_W")

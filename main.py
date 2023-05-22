@@ -24,11 +24,16 @@ from Rectifier import Rectifier
 
 
 rectifier = Rectifier()
-rectifier.calibrate_by_video("telin.ugent.be/~dvhamme/computervisie_2022/videos/gopro/calibration_W.mp4")
+# rectifier.calibrate_by_video("videos/calibration_W.mp4")
+# rectifier.save_calibration("calibration_W")
 
+# rectifier.calibrate_by_video("videos/calibration_M.mp4")
+# rectifier.save_calibration("calibration_M") 
+
+rectifier.load_calibration("calibration_W")
 
 print("calibrated")
-cap = cv.VideoCapture("telin.ugent.be/~dvhamme/computervisie_2022/videos/gopro/MSK_15.mp4")
+cap = cv.VideoCapture("videos/MSK_17.mp4")
 fps = int(cap.get(cv.CAP_PROP_FPS))
 
 f = 0

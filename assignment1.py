@@ -7,6 +7,8 @@ import ast
 from shapely.geometry import Polygon
 import os
 from assignment2.assignment2 import *
+from Extractor import *
+extractor = Extractor()
 
 # calculate intersection over union of bounding box
 def bb_iou(gt_bb, pred_bb):
@@ -124,33 +126,30 @@ def loop_for_assignment_2(drawPolygons=False):
     frames_path = "Database/Computervisie 2020 Project Database/test_pictures_msk"        # path of unprocessed images
     # frames_path = "wrong_images"
     counter = 1
+    all_top5 = []
     for img_path in glob.glob(f"{frames_path}/*.jpg"):
         file_name = img_path.split("\\")[-1]
         print(f"Processing {img_path}")
         img = cv.imread(img_path)
-        
-        results = process_single_image(img, drawPolygons)
-        print("Done processing")
+        results = extractor.extract_and_crop_image(img, drawPolygons)
         for idx, extracted_painting in enumerate(results):
-            
-            
-            
+            idx = str(idx)
             scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
-            
-            
             scores = np.array(scores)
             print(np.max(scores))
             ind = np.argpartition(scores, -5)[-5:]
             top5 = scores[ind]
             files = np.array(files)
-            subfolder = root_path + "/" + str(counter) + "_" + str(round(top5[-1], 3))
+            subfolder = root_path + "/" + str(counter) + "_" + str(round(np.max(scores), 3))
             counter += 1
-            make_directories(subfolder)
+            make_directories(f"{subfolder}")
+            make_directories(f"{subfolder}/{idx}")
             for i, matching_file in enumerate(files[ind]):
-                cv.imwrite(f"{subfolder}/match_{top5[i]}_{matching_file}.png", cv.imread("Database_paintings/Database/" + matching_file))
-            cv.imwrite(f"{subfolder}/test_image_{matching_file}.png", img)
-            cv.imwrite(f"{subfolder}/extracted_painting.png", extracted_painting)
-        
+                cv.imwrite(f"{subfolder}/{idx}/match_{top5[i]}_{matching_file}.png", cv.imread("Database_paintings/Database/" + matching_file))
+            cv.imwrite(f"{subfolder}/{idx}/test_image_{matching_file}.png", img)
+            cv.imwrite(f"{subfolder}/{idx}/extracted_painting.png", extracted_painting)
+            all_top5.append(top5)
+    print(all_top5)
 
 
 def loop_analytics():
@@ -191,8 +190,22 @@ def loop_analytics():
 # analytics of all images
 # loop_analytics()
 
+def evaluate_database():
+    root_path = "Database_paintings/Database"
+    files = os.listdir(root_path)
+    all_scores = []
+    for file in files:
+        img = cv.imread(root_path + "/" + file)
+        img = cv.resize(img, (500, 500))
+        img = cv.GaussianBlur(img, (5, 5), 0)
+        scores, files = calculate_score_assignment2_multi(img, "Database_paintings/Database")
+        scores = np.sort(scores)[::-1]
+        all_scores.append(scores)
+    print(np.mean(np.array(all_scores), axis=0))
+    
 
 if __name__ == "__main__":
+    evaluate_database()
     # loop_for_assignment_2()
-    loop_for_assignment_2()
+    # loop_for_assignment_2()
     # create_keypoints_and_color_hist_db("Database_paintings/Database")

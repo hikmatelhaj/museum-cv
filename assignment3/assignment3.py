@@ -9,6 +9,7 @@ import json
 import os
 import cv2, time, math
 import pandas as pd
+from Rectifier import Rectifier
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('.')))
@@ -20,7 +21,11 @@ from Extractor import *
 states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
 
 
-def video_frame_process(video_path, state_probability):
+def video_frame_process(video_path, state_probability, gopro=False, type="calibration_W"):
+    if gopro:
+        rectifier = Rectifier()
+        rectifier.load_calibration(type)
+        print("calibrated")
     cap = cv2.VideoCapture(video_path)
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     last_probabilities = state_probability
@@ -42,11 +47,15 @@ def video_frame_process(video_path, state_probability):
         #     continue
         
         flag, frame = cap.read()
+        if gopro:
+            frame = rectifier.process_image(frame)
         if frame is None: # if video is over
             break
         if f < seconds_to_wait * fps:
             f += 1
         if f % (seconds_to_wait * fps) == 0:
+            if gopro:
+                frame = rectifier.process_image(frame)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             lol = cv2.Laplacian(gray, cv2.CV_64F).var() 
             if lol > 30:
@@ -281,7 +290,7 @@ if __name__ == "__main__":
     
     # Define the initial state distribution: every state is equally likely
     state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
-    video_frame_process("videos/MSK_17.mp4", state_probability)
+    video_frame_process("videos/MSK_17.mp4", state_probability, False, "calibration_W")
 
 
 
