@@ -149,7 +149,7 @@ def calculate_homograhpy(good: list[cv.DMatch], kp1: tuple[list[cv.KeyPoint], li
             [kp2[m[0].trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
         # Estimate transformation matrix using RANSAC
-        M, mask = cv.findHomography(src_pts, dst_pts, cv.USAC_FAST, 5.0)
+        M, mask = cv.findHomography(src_pts, dst_pts, cv.USAC_MAGSAC, 5.0)
 
         # Count inliers
         inliers = np.sum(mask)

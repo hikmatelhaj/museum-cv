@@ -44,8 +44,8 @@ class Extractor:
                 
                 # too small polygons or weird shapes are filtered
                 if (polygonGeometry.area > 15000) and (not invalidArea):
-                    image = cv.polylines(
-                        image, [polygon], True, (0, 0, 255), 10)
+                    # image = cv.polylines(
+                    #     image, [polygon], True, (0, 0, 255), 10)
                     cut_list.append(polygon)
         return cut_list
 
