@@ -1,3 +1,7 @@
+"""
+This is code to test out if the hidden markov model "spread" out in case the emission probabilities are uniform.
+"""
+
 import numpy as np
 import pandas as pd
 from hmmlearn import hmm

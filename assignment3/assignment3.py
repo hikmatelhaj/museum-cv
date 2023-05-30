@@ -1,4 +1,3 @@
-# import the necessary libraries
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -19,10 +18,17 @@ from geomap import showHeatmap
 from Extractor import *
 from Rectifier import Rectifier
 
+# Possible rooms
 states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
 
 
-def video_frame_process(video_path, state_probability, gopro=False, type="calibration_W"):
+def process_video(video_path, state_probability, gopro=False, type="calibration_W"):
+    """
+    video_path: path to the video
+    state_probability: the initial probability
+    gopro: if the video is a gopro video
+    type: the type of calibration
+    """
     if gopro:
         rectifier = Rectifier()
         rectifier.load_calibration(type)
@@ -30,13 +36,13 @@ def video_frame_process(video_path, state_probability, gopro=False, type="calibr
     cap = cv2.VideoCapture(video_path)
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     last_probabilities = state_probability
+    last_last_probabilities = state_probability
     f = 0
-    no_matched_found = 0
     total_seconds = 0 # keep track of the total frames that was processed (can be converted to secs by dividing by fps)
     last_decile = 0 # keep track of the last 10 seconds that was processed
     scores_per_decile = {}
     st = time.time()
-    found_observations = []
+    found_observations = [] # All observations in HMM
     
     extractor = Extractor()
     
@@ -48,47 +54,47 @@ def video_frame_process(video_path, state_probability, gopro=False, type="calibr
         #     continue
         
         flag, frame = cap.read()
-        if gopro:
-            frame = rectifier.process_image(frame)
         if frame is None: # if video is over
             break
-        if f < seconds_to_wait * fps:
+        if gopro:
+            frame = rectifier.process_image(frame)
+            
+        if f < seconds_to_wait * fps: # logic to not process every frame
             f += 1
-        if f % (seconds_to_wait * fps) == 0:
+        if f % (seconds_to_wait * fps) == 0: # logic to not process every frame
             if gopro:
                 frame = rectifier.process_image(frame)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            lol = cv2.Laplacian(gray, cv2.CV_64F).var() 
-            if lol > 30:
+            lol = cv2.Laplacian(gray, cv2.CV_64F).var()
+            if lol > 30: # A sharp frame is found
                 process = True
                 # Frame is not blurry
             else:
                 continue
 
-        # wait until next sharp frame ( min 30 frames in between processing of sharp frames)
+        # wait until next sharp frame (min 30 frames in between processing of sharp frames)
         if process and f % (seconds_to_wait * fps) == 0:
             f = 1
             process = False
-            # print("processing frame")
             second = total_seconds / fps # get the current second in the video
-            decile = math.floor(second / 10) * 10 # round to the nearest decile
+            decile = math.floor(second / 10) * 10 # round to the nearest decile (10, 20, 30, ...)
             if decile not in scores_per_decile.keys():
                 scores_per_decile[decile] = []
-            results = extractor.extract_and_crop_image(frame, False) # assignment1.process_single_image(frame, False)
+            results = extractor.extract_and_crop_image(frame, False) # extract paintings from frame
             for idx, extracted_painting in enumerate(results):
-                if idx > 2: # process max 2 paintings per frame
+                if idx > 2: # process max 2 paintings per frame for performance reasons
                     continue
-                # cv2.imwrite(f'./dataset_video/painting_{idx}', extracted_painting)
                 scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
                 
                 canvas = np.zeros((600, 1000, 3), dtype=np.uint8)
-                
                 scores = np.array(scores)
-                ind = np.argpartition(scores, -2)[-2:]
-                top2 = scores[ind]
                 files = np.array(files)
-                files = files[ind]
-                scores_per_decile[decile].append({"score": top2[1], "file": files[1], "extracted": extracted_painting, "to_check": frame})
+                
+                score = np.max(scores)
+                index_file = np.argmax(scores)
+                file = files[index_file]
+                print("Score", score, "in room", get_zaal_by_filename(file))
+                scores_per_decile[decile].append({"score": score, "file": file, "extracted": extracted_painting, "to_check": frame})
                 if last_decile == decile: # only if a new decile is reached, show the best results
                     continue
                 
@@ -105,10 +111,10 @@ def video_frame_process(video_path, state_probability, gopro=False, type="calibr
                         prev = found_observations[-2]
                     except:
                         prev = found_observations[-1]
-                        
-                    last_probabilities, zaal_predict, df = calculate_hmm("no_match", "no_match", chances_FP, chances_TP, last_probabilities, prev)
-                
-                    # calculate_hmm_full_path(found_observations, zaal, chances_FP, chances_TP)
+                    
+                    last_last_probabilities = last_probabilities
+                    last_probabilities, zaal_predict, df = calculate_hmm("no_match", "no_match", chances_FP, chances_TP, last_last_probabilities, prev)
+
                     print("No paintings detected in the last", decile - last_decile , "seconds")
                     print("Predicted to be in zaal", zaal_predict)
                     showHeatmap(df)
@@ -116,10 +122,9 @@ def video_frame_process(video_path, state_probability, gopro=False, type="calibr
                     last_decile = decile # update the last decile
                     st = time.time()
                     continue
+                
                 print("Currently in", decile, "seconds")
-                amount_of_deciles_without_paintings = ((decile - last_decile) // 10) - 1 # -1 because the last 10 secs a painting was detected, otherwise the code wouldn't reach here
-                no_matched_found += amount_of_deciles_without_paintings
-                    
+
                 # Find the item with the highest score
                 highest_score_item = max(items, key=lambda x: x["score"])
 
@@ -128,8 +133,6 @@ def video_frame_process(video_path, state_probability, gopro=False, type="calibr
                 file_name = highest_score_item["file"]
                 highest_extracted_painting = highest_score_item["extracted"]
                 highest_to_check = highest_score_item["to_check"]
-
-                
                 
                 # clear to save space
                 scores_per_decile[decile] = []
@@ -148,16 +151,16 @@ def video_frame_process(video_path, state_probability, gopro=False, type="calibr
                     prev = found_observations[-2]
                 except:
                     prev = found_observations[-1]
-                last_probabilities, zaal_predict, df = calculate_hmm(score_bin, zaal, chances_FP, chances_TP, last_probabilities, prev)
+                last_last_probabilities = last_probabilities
+                last_probabilities, zaal_predict, df = calculate_hmm(score_bin, zaal, chances_FP, chances_TP, last_last_probabilities, prev)
                 
                 print("Predicted", zaal_predict)
                 print("db match zaal", zaal)
-                # calculate_hmm_full_path(found_observations, zaal, chances_FP, chances_TP)
                 st = time.time()
                 
                 
-                img2 = cv2.imread("Database_paintings/Database/" + file_name) # DB foto highest
-                img2 = cv2.GaussianBlur(img2, (5, 5), 0)
+                img2 = cv2.imread("Database_paintings/Database/" + file_name) # highest match
+                img2 = cv2.GaussianBlur(img2, (5, 5), 0) # for displaying purposes
                 img3 = highest_extracted_painting # extracted
 
                 img2 = cv2.resize(img2, (250, 250)) 
@@ -173,7 +176,7 @@ def video_frame_process(video_path, state_probability, gopro=False, type="calibr
                 canvas[50:300, 350:600] = img2
                 cv2.putText(canvas, f"DB highest {round(highest_score, 2)}", (400, 350), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-                highest_to_check = cv2.resize(highest_to_check, (350, 250)) #  into shape (250,350,3)
+                highest_to_check = cv2.resize(highest_to_check, (350, 250))
                 canvas[350:600, 225:575] = highest_to_check
 
 
@@ -197,7 +200,15 @@ def get_images_by_room(hidden_states, path="Database_paintings/Database"):
     return images
 
 def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_probs, prev_obs):
-    observation = translation_event[str(detected_score)]
+    """
+    detected_score: the score of the detected painting
+    detected_zaal: the room of the database match of the detected painting
+    chances_FP: the chances of a false positive, this is fixed
+    chances_TP: the chances of a true positive, this is fixed
+    start_probs: the start probabilities of the HMM
+    prev_obs: the previous observation
+    """
+    observation = translation_event[str(detected_score)] # converted to an observation
     emission_probability = []
 
     if detected_zaal == "no_match":
@@ -225,40 +236,6 @@ def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_p
     df = pd.DataFrame(data)
     return np.squeeze(hidden_states_probs), states[hidden_states], df
       
-      
-# def calculate_hmm_full_path(detected_scores, detected_zaal, chances_FP, chances_TP):
-#     observations = []
-#     for score in detected_scores:
-#         observations.append(translation_event[str(score)])
-#     emission_probability = []
-#     state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
-#     for zaal in states:
-#         if zaal == detected_zaal:
-#             emission_probability.append(chances_TP)
-#         else:
-#             emission_probability.append(chances_FP)
-    
-#     emission_probability = np.array(emission_probability)
-#     # print("\nEmission probability:\n", emission_probability)
-
-#     observations_sequence = np.array([observations]).reshape(-1, 1)
-#     model = hmm.CategoricalHMM(n_components=n_states)
-    
-#     model.startprob_ = state_probability
-#     model.transmat_ = tm.transition_matrix
-#     model.emissionprob_ = emission_probability
-#     hidden_states = model.predict(observations_sequence)
-#     hidden_states_probs = model.predict_proba(observations_sequence)
-#     states_np = np.array(states)
-#     print("Full path, zalen zijn", states_np[hidden_states])
-#     # print("Probabilities of each state:", hidden_states_probs)
-    
-#     # data = {"State": states, "Probability": hidden_states_probs}
-#     # df = pd.DataFrame(data)
-#     # showHeatmap(df)
-    
-    
-#     return hidden_states
           
 if __name__ == "__main__":
 
@@ -290,12 +267,4 @@ if __name__ == "__main__":
     
     # Define the initial state distribution: every state is equally likely
     state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
-    video_frame_process("videos/MSK_07.mp4", state_probability, False, "calibration_W")
-
-
-
-
-
-
-
-# https://www.geeksforgeeks.org/hidden-markov-model-in-machine-learning/
+    process_video("videos/MSK_07.mp4", state_probability, False, "calibration_W")

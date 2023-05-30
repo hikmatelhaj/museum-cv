@@ -122,11 +122,6 @@ def scale_and_display(img: np.ndarray) -> None:
 
 def lowe_test(matches: list[cv.DMatch]) -> list[cv.DMatch]:
     # Apply ratio test
-    """
-    What is Lowe's ratio test? 
-
-    Short version: each keypoint of the first image is matched with a number of keypoints from the second image. We keep the 2 best matches for each keypoint (best matches = the ones with the smallest distance measurement). Lowe's test checks that the two distances are sufficiently different. If they are not, then the keypoint is eliminated and will not be used for further calculations.
-    """
     good = []
     lowe_ratio = 0.80
     for m, n in matches:
@@ -140,7 +135,7 @@ def calculate_homograhpy(good: list[cv.DMatch], kp1: tuple[list[cv.KeyPoint], li
     Calculates the homography matrix between two sets of keypoints.
     It's used to calculate the inlier ratio to determine how good the keypoints match.
     """
-    # minimum number of matches required to estimate transformation matrix
+    # minimum number of matches required to estimate transformation matrix, otherwise no match
     MIN_MATCH_COUNT = 10
     if len(good) >= MIN_MATCH_COUNT:
         src_pts = np.float32(
@@ -148,7 +143,7 @@ def calculate_homograhpy(good: list[cv.DMatch], kp1: tuple[list[cv.KeyPoint], li
         dst_pts = np.float32(
             [kp2[m[0].trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
-        # Estimate transformation matrix using RANSAC
+        # Estimate transformation matrix using newer version of RANSAC
         M, mask = cv.findHomography(src_pts, dst_pts, cv.USAC_MAGSAC, 5.0)
 
         # Count inliers
@@ -172,6 +167,9 @@ def normalize(scores: list[float]) -> list[float]:
 
 
 def create_keypoints_and_color_hist_db(db_folder):
+    """
+    Create the keypoints and histogram values of the database images once for faster processing. Should only be executed once.
+    """
     files = os.listdir(db_folder)
     kps = []
     dess = []
@@ -180,16 +178,13 @@ def create_keypoints_and_color_hist_db(db_folder):
     for file2 in files:
         img2 = cv.imread(db_folder + "/" + file2)
         img2 = cv.resize(img2, (500, 500))
-        # this works
-        img2 = cv.GaussianBlur(img2, (5, 5), 0)
+        img2 = cv.GaussianBlur(img2, (5, 5), 0) # Gaussian blur to avoid specific keypoints
 
 
         # Initiate ORB detector, argument for number of keypoints
         # find the keypoints with ORB
         orb = cv.ORB_create(100)
         kp2, des2 = orb.detectAndCompute(img2, None)
-        # bf = cv.BFMatcher()
-        # matches = bf.knnMatch(des1, des2, k=2)
         
         dess.append(des2)
         kp_list = [(k.pt, k.size, k.angle, k.response, k.octave, k.class_id) for k in kp2]
@@ -236,9 +231,6 @@ def calculate_score_assignment2_multi(img, db_folder):
     orb = cv.ORB_create(100)
     kp1, des1 = orb.detectAndCompute(img, None)
     
-    histogram_scores = []
-    matcher_scores = []
-    
     with open('keypoints.pkl', 'rb') as f:
         kps = pickle.load(f)
 
@@ -250,6 +242,8 @@ def calculate_score_assignment2_multi(img, db_folder):
 
     final_scores = []
     indices = []
+    
+    # Multithreading for faster processing (around 2 times faster)
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
         futures = []
         for i, file in enumerate(files):
@@ -261,7 +255,7 @@ def calculate_score_assignment2_multi(img, db_folder):
 
     et = time.time()
     elapsed_time = et - st
-    print('Execution time:', elapsed_time, 'seconds')
+    print('Execution time:', round(elapsed_time, 2), 'seconds')
     return final_scores, np.array(files)[indices]   
 
 def calculate_score_assignment2(img, db_folder):
@@ -288,9 +282,6 @@ def calculate_score_assignment2(img, db_folder):
 
         
     for i, file2 in enumerate(files):
-
-        
-        # kp2, des2 = orb.detectAndCompute(img2, None)
         kp_list = kps[i]
         kp2 = [cv.KeyPoint(x, y, size, angle, response, octave, class_id) for (x, y), size, angle, response, octave, class_id in kp_list] 
         des2 = dess[i]
@@ -306,22 +297,21 @@ def calculate_score_assignment2(img, db_folder):
 
         histogram_i = histogram[i]
         hist_blue1, hist_green1, hist_red1 = calc_histogram(img)
-        hist_blue2, hist_green2, hist_red2 = histogram_i[0], histogram_i[1], histogram_i[2] # calc_histogram(img2)
+        hist_blue2, hist_green2, hist_red2 = histogram_i[0], histogram_i[1], histogram_i[2]
 
         # plot_histograms([hist_blue1, hist_green1, hist_red1], [hist_green2, hist_blue2, hist_red2])
 
         histogram_score = compare_histograms([hist_blue1, hist_green1, hist_red1], [hist_blue2, hist_green2, hist_red2])
         histogram_scores.append(histogram_score)
         
-
-        
+  
     final_scores = []
     for i in range(len(histogram_scores)):
         final_score = get_final_score(np.array([matcher_scores[i], 1 - histogram_scores[i]]))
         final_scores.append(final_score)
     et = time.time()
     elapsed_time = et - st
-    print('Execution time:', elapsed_time, 'seconds')
+    print('Execution time:', round(elapsed_time, 2), 'seconds')
     return final_scores, files
 
 def make_directories(path):
@@ -329,53 +319,6 @@ def make_directories(path):
         os.mkdir(path) 
     except OSError as error: 
         pass
-
-# def evaluate_dataset(drawPolygons=False):
-#     root_path = "Results_assignment2"
-#     make_directories(root_path)
-#     frames_path = "Database/Computervisie 2020 Project Database/dataset_pictures_msk"        # path of unprocessed images
-#     counter = 1
-#     for zaal in os.walk(frames_path):
-#         for img_path in glob.glob(f"{frames_path}/{zaal}/*.jpg"):
-#             file_name = img_path.split("\\")[-1]
-#             print(f"Processing {img_path}")
-#             img = cv.imread(img_path)
-            
-#             results = process_single_image(img, drawPolygons)
-#             print("Done processing")
-#             for idx, extracted_painting in enumerate(results):
-#                 subfolder = root_path + "/" + str(counter)
-#                 make_directories(subfolder)
-#                 counter += 1
-#                 scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
-                
-                
-                
-#                 scores = np.array(scores)
-#                 print(np.max(scores))
-#                 ind = np.argpartition(scores, -5)[-5:]
-#                 top5 = scores[ind]
-#                 files = np.array(files)
-#                 for i, matching_file in enumerate(files[ind]):
-#                     cv.imwrite(f"{subfolder}/match_{top5[i]}_{matching_file}.png", cv.imread("Database_paintings/Database/" + matching_file))
-#                 cv.imwrite(f"{subfolder}/test_image_{matching_file}.png", img)
-#                 cv.imwrite(f"{subfolder}/extracted_painting.png", extracted_painting)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-if __name__ == "__main__":
-    folder = "Database_paintings/Database"
     
 
 

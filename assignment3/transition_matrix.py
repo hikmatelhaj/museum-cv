@@ -1,15 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-probability_same_room = 0.6
-probability_next_room = 0.3
-probability_next_next_room = 0.1
+# Probabilities to choose
+probability_same_room = 0.6 # 60% chance to stay in the same room
+probability_next_room = 0.3 # 30% chance to go to an adjacent room
+probability_next_next_room = 0.1 # 10% chance to go to an adjacent room of an adjacent room
 
 matrix = np.identity(41)
 matrix *= probability_same_room
 
 
-# Buren krijgen een score van 1
+# 1 = a connected room
 matrix[1, 0] = 1
 matrix[2, 1] = 1
 matrix[3, 1] = 1
@@ -99,7 +100,6 @@ for i in range(len(matrix_final)):
         for index_neighbour in indices_neighbours[0]:
             if matrix_final[i, index_neighbour] == 0:
                 matrix_final[i, index_neighbour] = 2
-# Count the occurences of 2 
 
 
 for i in range(len(matrix_final)):
