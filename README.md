@@ -9,3 +9,24 @@ Files located in the folder `assignment2`. The files `histogram.pkl`, `keypoints
 
 # Assignment 3: localization
 Files located in the folder `assignment3`. The file `label_video.py` is used to manually label the videos. The results are saved in `labels`.
+
+
+
+### Transition matrix
+
+The file ```assignment3/transition_matrix.py``` contains the code for creating the transition matrix. 
+
+The indices used in the matrix correspond to the following plan: 
+
+
+
+![adapted_plan_msk](C:\Users\xande\Downloads\adapted_plan_msk.png)
+
+### Hidden Markov Model
+
+The code found in ```assignment3/assignment3.py``` includes the functionality to determine the room probabilities and localize the user based on a video in the museum.
+
+The function ```calculate_hmm``` uses the ```CategoricalHMM``` model from hmmlearn, a Python library for hidden markov models, to determine the room probabilities.
+
+The file ```assignment3/geomap.py``` together with ```assignment3/coords.csv``` provide a visualization of the room probabilities in the form of a heatmap. This is used in ```assignment3/assignment3.py``` to show a clear image of the probabilities when executing ```calculate_hmm```.
+
