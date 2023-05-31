@@ -20,7 +20,7 @@ The indices used in the matrix correspond to the following plan:
 
 
 
-![adapted_plan_msk](C:\Users\xande\Downloads\adapted_plan_msk.png)
+![adapted_plan_msk](https://github.ugent.be/storage/user/10152/files/2b632b56-6c3e-4557-8797-7d43bfdf086e)
 
 ### Hidden Markov Model
 
