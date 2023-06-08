@@ -150,6 +150,8 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     highest_extracted_painting = highest_score_item["extracted"]
                     highest_to_check = highest_score_item["to_check"]
                     
+                    # TODO: convert de foto 'highest_to_check' zodat de randen daar op staan
+                    
                     # clear to save space
                     scores_per_decile[decile] = []
                     

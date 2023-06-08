@@ -5,7 +5,7 @@ Project Computervision
 
 
 # Assignment 2: matching
-Files located in the folder `assignment2`. The files `histogram.pkl`, `keypoints.pkl` and `descriptors.pkl` are mandatory for the code to run. These files can also be created with the function `create_keypoints_and_color_hist_db()`
+The files `histogram.pkl`, `keypoints.pkl` and `descriptors.pkl` are mandatory for the code to run. These files can also be created with the function `create_keypoints_and_color_hist_db()`. The logic of assignment 2 located in the folder `assignment2`.
 
 The function `calculate_score_assignment2_multi()` is used to get the score of an image when compared to every image in the database.
 
