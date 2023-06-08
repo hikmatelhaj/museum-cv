@@ -282,3 +282,4 @@ if __name__ == "__main__":
     # Define the initial state distribution: every state is equally likely
     state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
     process_video("videos/MSK_07.mp4", state_probability, False, "calibration_W") # demo 1
+    # process_video("videos/MSK_15.mp4", state_probability, True, "calibration_W") # demo 2
