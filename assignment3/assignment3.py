@@ -21,6 +21,9 @@ from Rectifier import Rectifier
 # Possible rooms
 states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
 
+def print_green(text):
+    print("\033[32m" + text + "\033[0m")
+
 
 def process_video(video_path, state_probability, gopro=False, type="calibration_W"):
     """
@@ -38,7 +41,7 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
     last_probabilities = state_probability
     last_last_probabilities = state_probability
     f = 0
-    total_seconds = 0 # keep track of the total frames that was processed (can be converted to secs by dividing by fps)
+    total_frames = 0 # keep track of the total frames that was processed (can be converted to secs by dividing by fps)
     last_decile = 0 # keep track of the last 10 seconds that was processed
     scores_per_decile = {}
     st = time.time()
@@ -47,10 +50,11 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
     extractor = Extractor()
     
     seconds_to_wait = 1 # wait x seconds before processing the next frame after a sharp frame
+    process = False
     while True:
-        process = False
-        total_seconds += 1
-        # if total_seconds % 2 != 0:
+        
+        total_frames += 1
+        # if total_frames % 2 != 0:
         #     continue
         
         flag, frame = cap.read()
@@ -76,7 +80,7 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
         if process and f % (seconds_to_wait * fps) == 0:
             f = 1
             process = False
-            second = total_seconds / fps # get the current second in the video
+            second = total_frames / fps # get the current second in the video
             decile = math.floor(second / 10) * 10 # round to the nearest decile (10, 20, 30, ...)
             if decile not in scores_per_decile.keys():
                 scores_per_decile[decile] = []
@@ -93,100 +97,111 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                 score = np.max(scores)
                 index_file = np.argmax(scores)
                 file = files[index_file]
-                print("Score", score, "in room", get_zaal_by_filename(file))
+                print("Score", round(score, 2), "in room", get_zaal_by_filename(file))
                 scores_per_decile[decile].append({"score": score, "file": file, "extracted": extracted_painting, "to_check": frame})
                 if last_decile == decile: # only if a new decile is reached, show the best results
                     continue
                 
-                items = scores_per_decile.get(last_decile, [])
+                # items = scores_per_decile.get(last_decile, [])
                 et = time.time()
                 elapsed_time = et - st
-                print('It took', elapsed_time, 'seconds to process the last', decile - last_decile ,'seconds')
+                print_green(f"It took {elapsed_time} seconds to process the last {decile - last_decile} seconds")
+                # if decile - last_decile > 10:
+                #     print(len(scores_per_decile.get(last_decile, [])), scores_per_decile.get(last_decile, []))
+                #     print(len(scores_per_decile.get(last_decile - 10, [])), scores_per_decile.get(last_decile - 10, []))
+
+                all_items = []
+                for i in range(last_decile, decile, 10):
+                    items = scores_per_decile.get(i, [])
+                    all_items.append(items)
                 
+                for items in all_items:
+                    if len(items) == 0:
+                        # hmm calculate
+                        found_observations.append("no_match")
+                        try:
+                            prev = found_observations[-2]
+                        except:
+                            prev = found_observations[-1]
+                        
+                        last_last_probabilities = last_probabilities
+                        last_probabilities, zaal_predict, df, percentage = calculate_hmm("no_match", "no_match", chances_FP, chances_TP, last_last_probabilities, prev)
+                        
+                        if len(items) == 1:
+                            print_green(f"No paintings detected in the last {decile - last_decile} seconds")
+                        else:
+                            print_green(f"No paintings detected")
+                            
+                        print_green(f"Room {zaal_predict} is predicted with {round(percentage*100, 2)}% certainty. There is no matching database image.")
+                        showHeatmap(df)
+                        scores_per_decile[decile] = []
+                        last_decile = decile # update the last decile
+                        st = time.time()
+                        continue
                     
-                if len(items) == 0:
+                    print_green(f"Currently in {decile} seconds")
+
+                    # Find the item with the highest score
+                    highest_score_item = max(items, key=lambda x: x["score"])
+
+                    # Retrieve the desired information from the highest score item
+                    highest_score = highest_score_item["score"]
+                    file_name = highest_score_item["file"]
+                    highest_extracted_painting = highest_score_item["extracted"]
+                    highest_to_check = highest_score_item["to_check"]
+                    
+                    # clear to save space
+                    scores_per_decile[decile] = []
+                    
+                    # process next decile
+                    last_decile = decile # update the last decile
+                    
+                    score_bin = math.floor(highest_score * 10) / 10
+                    if score_bin == 1.0:
+                        score_bin = 0.9
+
                     # hmm calculate
-                    found_observations.append("no_match")
+                    zaal = get_zaal_by_filename(file_name)
+                    found_observations.append(score_bin)
                     try:
                         prev = found_observations[-2]
                     except:
                         prev = found_observations[-1]
-                    
                     last_last_probabilities = last_probabilities
-                    last_probabilities, zaal_predict, df = calculate_hmm("no_match", "no_match", chances_FP, chances_TP, last_last_probabilities, prev)
+                    last_probabilities, zaal_predict, df, percentage = calculate_hmm(score_bin, zaal, chances_FP, chances_TP, last_last_probabilities, prev)
+                    
+                    print_green(f"Room {zaal_predict} is predicted with {round(percentage*100, 2)}% certainty. The matching database room is {zaal}.")
+                    
+                    
+                    img2 = cv2.imread("Database_paintings/Database/" + file_name) # highest match
+                    img2 = cv2.GaussianBlur(img2, (5, 5), 0) # for displaying purposes
+                    img3 = highest_extracted_painting # extracted
 
-                    print("No paintings detected in the last", decile - last_decile , "seconds")
-                    print("Predicted to be in zaal", zaal_predict)
-                    showHeatmap(df)
-                    scores_per_decile[decile] = []
-                    last_decile = decile # update the last decile
-                    st = time.time()
-                    continue
-                
-                print("Currently in", decile, "seconds")
+                    img2 = cv2.resize(img2, (250, 250)) 
+                    img3 = cv2.resize(img3, (250, 250))
 
-                # Find the item with the highest score
-                highest_score_item = max(items, key=lambda x: x["score"])
+                    canvas = np.zeros((600, 800, 3), dtype=np.uint8)
 
-                # Retrieve the desired information from the highest score item
-                highest_score = highest_score_item["score"]
-                file_name = highest_score_item["file"]
-                highest_extracted_painting = highest_score_item["extracted"]
-                highest_to_check = highest_score_item["to_check"]
-                
-                # clear to save space
-                scores_per_decile[decile] = []
-                
-                # process next decile
-                last_decile = decile # update the last decile
-                
-                score_bin = math.floor(highest_score * 10) / 10
-                if score_bin == 1.0:
-                    score_bin = 0.9
+                    img2 = cv2.resize(img2, (250, 250))
 
-                # hmm calculate
-                zaal = get_zaal_by_filename(file_name)
-                found_observations.append(score_bin)
-                try:
-                    prev = found_observations[-2]
-                except:
-                    prev = found_observations[-1]
-                last_last_probabilities = last_probabilities
-                last_probabilities, zaal_predict, df = calculate_hmm(score_bin, zaal, chances_FP, chances_TP, last_last_probabilities, prev)
-                
-                print("Predicted", zaal_predict)
-                print("db match zaal", zaal)
-                st = time.time()
-                
-                
-                img2 = cv2.imread("Database_paintings/Database/" + file_name) # highest match
-                img2 = cv2.GaussianBlur(img2, (5, 5), 0) # for displaying purposes
-                img3 = highest_extracted_painting # extracted
+                    canvas[50:300, 50:300] = img3
+                    cv2.putText(canvas, f"Extracted", (275, 650), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-                img2 = cv2.resize(img2, (250, 250)) 
-                img3 = cv2.resize(img3, (250, 250))
+                    canvas[50:300, 350:600] = img2
+                    cv2.putText(canvas, f"DB highest {round(highest_score, 2)}", (400, 350), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-                canvas = np.zeros((600, 800, 3), dtype=np.uint8)
-
-                img2 = cv2.resize(img2, (250, 250))
-
-                canvas[50:300, 50:300] = img3
-                cv2.putText(canvas, f"Extracted", (275, 650), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-
-                canvas[50:300, 350:600] = img2
-                cv2.putText(canvas, f"DB highest {round(highest_score, 2)}", (400, 350), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-
-                highest_to_check = cv2.resize(highest_to_check, (350, 250))
-                canvas[350:600, 225:575] = highest_to_check
+                    highest_to_check = cv2.resize(highest_to_check, (350, 250))
+                    canvas[350:600, 225:575] = highest_to_check
 
 
-                cv2.imshow("Display Images", canvas)
-                key = cv2.waitKey(0)
-                # Check the pressed key and do something based on it
-                while key != ord('y') and key != ord('n'):
+                    cv2.imshow("Display Images", canvas)
                     key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                showHeatmap(df)
+                    # Check the pressed key and do something based on it
+                    while key != ord('y') and key != ord('n'):
+                        key = cv2.waitKey(0)
+                    cv2.destroyAllWindows()
+                    showHeatmap(df)
+                st = time.time()
             
 def get_zaal_by_filename(filename):
     filename = filename.split("_")
@@ -228,13 +243,12 @@ def calculate_hmm(detected_score, detected_zaal, chances_FP, chances_TP, start_p
     model.startprob_ = start_probs
     model.transmat_ = tm.transition_matrix
     model.emissionprob_ = emission_probability
-    hidden_states = model.predict(observations_sequence)[1]
     hidden_states_probs = model.predict_proba(observations_sequence)[1]
     # print("Most likely hidden states:", hidden_states, "in zaal", states[hidden_states[0]])
     # print("Probabilities of each state:", hidden_states_probs)
     data = {"Hall": states, "probability": np.squeeze(hidden_states_probs)}
     df = pd.DataFrame(data)
-    return np.squeeze(hidden_states_probs), states[hidden_states], df
+    return np.squeeze(hidden_states_probs), states[np.argmax(hidden_states_probs)], df, np.max(hidden_states_probs)
       
           
 if __name__ == "__main__":
@@ -267,4 +281,4 @@ if __name__ == "__main__":
     
     # Define the initial state distribution: every state is equally likely
     state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
-    process_video("videos/MSK_06.mp4", state_probability, False, "calibration_W")
+    process_video("videos/MSK_07.mp4", state_probability, False, "calibration_W") # demo 1
