@@ -62,12 +62,16 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
             break
         if gopro:
             frame = rectifier.process_image(frame)
+            # cv2.imshow("Display Images", frame)
+            # key = cv2.waitKey(0)
+            # # Check the pressed key and do something based on it
+            # while key != ord('y') and key != ord('n'):
+            #     key = cv2.waitKey(0)
+            # continue
             
         if f < seconds_to_wait * fps: # logic to not process every frame
             f += 1
         if f % (seconds_to_wait * fps) == 0: # logic to not process every frame
-            if gopro:
-                frame = rectifier.process_image(frame)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             lol = cv2.Laplacian(gray, cv2.CV_64F).var()
             if lol > 30: # A sharp frame is found
@@ -283,5 +287,5 @@ if __name__ == "__main__":
     
     # Define the initial state distribution: every state is equally likely
     state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
-    process_video("videos/MSK_07.mp4", state_probability, False, "calibration_W") # demo 1
-    # process_video("videos/MSK_15.mp4", state_probability, True, "calibration_W") # demo 2
+    # process_video("videos/MSK_07.mp4", state_probability, False, "calibration_W") # demo 1
+    process_video("videos/MSK_15.mp4", state_probability, True, "calibration_W") # demo 2

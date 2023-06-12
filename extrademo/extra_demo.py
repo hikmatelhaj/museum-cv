@@ -86,5 +86,5 @@ if __name__ == "__main__":
         last_probabilities, zaal_predict, df, percentage = calculate_hmm("no_match", "no_match", chances_FP, chances_TP, last_last_probabilities, "no_match")
         showHeatmap(df)
     
-    last_probabilities, zaal_predict, df, percentage = calculate_hmm("0.9", "A", chances_FP, chances_TP, last_last_probabilities, "0.9")
+    last_probabilities, zaal_predict, df, percentage = calculate_hmm("0.9", "19", chances_FP, chances_TP, last_last_probabilities, "0.9")
     showHeatmap(df)
