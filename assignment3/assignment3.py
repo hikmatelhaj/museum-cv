@@ -58,16 +58,11 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
         #     continue
         
         flag, frame = cap.read()
+        
         if frame is None: # if video is over
             break
         if gopro:
             frame = rectifier.process_image(frame)
-            # cv2.imshow("Display Images", frame)
-            # key = cv2.waitKey(0)
-            # # Check the pressed key and do something based on it
-            # while key != ord('y') and key != ord('n'):
-            #     key = cv2.waitKey(0)
-            # continue
             
         if f < seconds_to_wait * fps: # logic to not process every frame
             f += 1
@@ -101,12 +96,12 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                 score = np.max(scores)
                 index_file = np.argmax(scores)
                 file = files[index_file]
-                print("Score", round(score, 2), "in room", get_zaal_by_filename(file))
-                scores_per_decile[decile].append({"score": score, "file": file, "extracted": extracted_painting, "to_check": frame})
-                if last_decile == decile: # only if a new decile is reached, show the best results
-                    continue
+                if last_decile == decile: # only print the resultst of the current decile
+                    print("Score", round(score, 2), "in room", get_zaal_by_filename(file))
+                    scores_per_decile[decile].append({"score": score, "file": file, "extracted": extracted_painting, "to_check": frame})
+                    continue # only if a new decile is reached, show the best results, else skip
+                    
                 
-                # items = scores_per_decile.get(last_decile, [])
                 et = time.time()
                 elapsed_time = et - st
                 print_green(f"It took {elapsed_time} seconds to process the last {decile - last_decile} seconds")
@@ -138,9 +133,9 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                             
                         print_green(f"Room {zaal_predict} is predicted with {round(percentage*100, 2)}% certainty. There is no matching database image.")
                         showHeatmap(df)
-                        scores_per_decile[decile] = []
                         last_decile = decile # update the last decile
                         st = time.time()
+                        
                         continue
                     
                     print_green(f"Currently in {decile} seconds")
@@ -155,9 +150,7 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     highest_to_check = highest_score_item["to_check"]
                     
                     # TODO: convert de foto 'highest_to_check' zodat de randen daar op staan
-                    
-                    # clear to save space
-                    scores_per_decile[decile] = []
+                
                     
                     # process next decile
                     last_decile = decile # update the last decile
@@ -207,6 +200,12 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                         key = cv2.waitKey(0)
                     cv2.destroyAllWindows()
                     showHeatmap(df)
+                    
+                # clear to save space
+                scores_per_decile[decile] = []
+                # We add again the latest observation, because that one is not processed yet
+                scores_per_decile[decile].append({"score": score, "file": file, "extracted": extracted_painting, "to_check": frame})
+                print("Score", round(score, 2), "in room", get_zaal_by_filename(file))
                 st = time.time()
             
 def get_zaal_by_filename(filename):
@@ -287,5 +286,5 @@ if __name__ == "__main__":
     
     # Define the initial state distribution: every state is equally likely
     state_probability = np.empty(len(states)); state_probability.fill(1/len(states))
-    # process_video("videos/MSK_07.mp4", state_probability, False, "calibration_W") # demo 1
-    process_video("videos/MSK_15.mp4", state_probability, True, "calibration_W") # demo 2
+    process_video("videos/MSK_07.mp4", state_probability, False, "calibration_W") # demo 1
+    # process_video("videos/MSK_15.mp4", state_probability, True, "calibration_W") # demo 2
