@@ -13,9 +13,9 @@ import pandas as pd
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('.')))
 from assignment2.assignment2 import *
-from geomap import showHeatmap
-from Extractor import *
-from Rectifier import Rectifier
+from geomap import showHeatmap, heatmapToImg
+from assignment1.Extractor import *
+from assignment1.Rectifier import Rectifier
 
 # Possible rooms
 states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
@@ -82,11 +82,11 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
             decile = math.floor(second / 10) * 10 # round to the nearest decile (10, 20, 30, ...)
             if decile not in scores_per_decile.keys():
                 scores_per_decile[decile] = []
-            results = extractor.extract_and_crop_image(frame, False) # extract paintings from frame
+            polygons, results, img_with_polygons = extractor.extract_and_crop_image(frame, True) # extract paintings from frame
             for idx, extracted_painting in enumerate(results):
                 if idx > 2: # process max 2 paintings per frame for performance reasons
                     continue
-                scores, files = calculate_score_assignment2_multi(extracted_painting, "Database_paintings/Database")
+                scores, files = calculate_score_assignment2_multi(extracted_painting, "data/Database")
                 
                 canvas = np.zeros((600, 1000, 3), dtype=np.uint8)
                 scores = np.array(scores)
@@ -97,7 +97,7 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                 file = files[index_file]
                 if last_decile == decile: # only print the resultst of the current decile
                     print("Score", round(score, 2), "in room", get_zaal_by_filename(file))
-                    scores_per_decile[decile].append({"score": score, "file": file, "extracted": extracted_painting, "to_check": frame})
+                    scores_per_decile[decile].append({"score": score, "file": file, "extracted": extracted_painting, "to_check": frame, "frame_with_contours": img_with_polygons, "polygon": polygons[idx]})
                     continue # only if a new decile is reached, show the best results, else skip
                     
                 
@@ -131,7 +131,7 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                             print_green(f"No paintings detected")
                             
                         print_green(f"Room {zaal_predict} is predicted with {round(percentage*100, 2)}% certainty. There is no matching database image.")
-                        showHeatmap(df)
+                        # showHeatmap(df)
                         last_decile = decile # update the last decile
                         st = time.time()
                         
@@ -147,9 +147,9 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     file_name = highest_score_item["file"]
                     highest_extracted_painting = highest_score_item["extracted"]
                     highest_to_check = highest_score_item["to_check"]
-                    
-                    # TODO: convert de foto 'highest_to_check' zodat de randen daar op staan
-                
+                    highest_frame_with_contours = highest_score_item["frame_with_contours"]
+
+                    highest_frame_with_contours = cv.polylines(highest_frame_with_contours, [highest_score_item["polygon"]], True, (0, 255, 0), 10)
                     
                     # process next decile
                     last_decile = decile # update the last decile
@@ -171,26 +171,30 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     print_green(f"Room {zaal_predict} is predicted with {round(percentage*100, 2)}% certainty. The matching database room is {zaal}.")
                     
                     
-                    img2 = cv2.imread("Database_paintings/Database/" + file_name) # highest match
+                    img2 = cv2.imread("data/Database/" + file_name) # highest match
                     img2 = cv2.GaussianBlur(img2, (5, 5), 0) # for displaying purposes
                     img3 = highest_extracted_painting # extracted
 
                     img2 = cv2.resize(img2, (250, 250)) 
                     img3 = cv2.resize(img3, (250, 250))
+                    highest_frame_with_contours = cv2.resize(highest_frame_with_contours, (350, 250))
+                    
+                    canvas = np.zeros((600, 1230, 3), dtype=np.uint8)
 
-                    canvas = np.zeros((600, 800, 3), dtype=np.uint8)
+                    canvas[25:275, 50:400] = highest_frame_with_contours
+                    canvas[325:575, 50:300] = img2
 
-                    img2 = cv2.resize(img2, (250, 250))
+                    cv2.putText(canvas, f"Match score: {round(highest_score, 2)}", (325, 535), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+                    cv2.putText(canvas, f"Hall: {get_zaal_by_filename(file)}", (325, 560), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
 
-                    canvas[50:300, 50:300] = img3
-                    cv2.putText(canvas, f"Extracted", (275, 650), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                    heatmapImg, colorbar = heatmapToImg(df)
+                    heatmapImg = cv2.resize(heatmapImg, (600, 450))
+                    colorbar = cv2.resize(colorbar, (30, 450))
+                    canvas[25:475, 550:1150] = heatmapImg
+                    canvas[25:475, 1150:1180] = colorbar
 
-                    canvas[50:300, 350:600] = img2
-                    cv2.putText(canvas, f"DB highest {round(highest_score, 2)}", (400, 350), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-
-                    highest_to_check = cv2.resize(highest_to_check, (350, 250))
-                    canvas[350:600, 225:575] = highest_to_check
-
+                    cv2.putText(canvas, f"Current hall: {zaal_predict}", (900, 535), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+                    cv2.putText(canvas, f"Probability: {round(percentage, 2)}", (900, 560), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
 
                     cv2.imshow("Display Images", canvas)
                     key = cv2.waitKey(0)
@@ -198,12 +202,11 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     while key != ord('y') and key != ord('n'):
                         key = cv2.waitKey(0)
                     cv2.destroyAllWindows()
-                    showHeatmap(df)
                     
                 # clear to save space
                 scores_per_decile[decile] = []
                 # We add again the latest observation, because that one is not processed yet
-                scores_per_decile[decile].append({"score": score, "file": file, "extracted": extracted_painting, "to_check": frame})
+                scores_per_decile[decile].append({"score": score, "file": file, "extracted": extracted_painting, "to_check": frame, "frame_with_contours": img_with_polygons, "polygon": polygons[idx]})
                 print("Score", round(score, 2), "in room", get_zaal_by_filename(file))
                 st = time.time()
             

@@ -66,17 +66,18 @@ class Extractor:
         """
         Process a single images, extracts all paintings 
         and creates new images, each with the cropped painting
-        :return: cropped images of paintings
+        :return: polygons, cropped images of paintings, image with polygons drawed
         """
         # extract paintings
         polygons = self.find_painting(image)
 
         result_imgs = []
+        img_with_polygons = image.copy()
 
         for polygon in polygons:
             # draw if necessary
             if drawPolygons:
-                image = cv.polylines(image, [polygon], True, (0, 0, 255), 10)
+                img_with_polygons = cv.polylines(img_with_polygons, [polygon], True, (0, 0, 255), 10)
 
             # calculate new coordinatees
             maxW = max(polygon[:, 0]) - min(polygon[:, 0])
@@ -95,4 +96,4 @@ class Extractor:
             # add new painting image to result list
             result_imgs.append(result)
 
-        return result_imgs
+        return polygons, result_imgs, img_with_polygons
