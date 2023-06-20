@@ -73,6 +73,8 @@ def heatmapToImg(probs):
     bar_info = plt.cm.ScalarMappable(cmap=my_cmap, norm=plt.Normalize(vmin=0, vmax=1))
     bar_info._A = []
     cbar = fig.colorbar(bar_info)
+    cbar_yticks = plt.getp(cbar.ax.axes, 'yticklabels')
+    plt.setp(cbar_yticks, color='w')
 
     
     fig.canvas.draw()

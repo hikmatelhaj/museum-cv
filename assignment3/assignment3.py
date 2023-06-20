@@ -190,17 +190,20 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     heatmapImg, colorbar = heatmapToImg(df)
                     heatmapImg = cv2.resize(heatmapImg, (600, 450))
                     colorbar = cv2.resize(colorbar, (30, 450))
-                    canvas[25:475, 550:1150] = heatmapImg
+                    canvas[25:475, 540:1140] = heatmapImg
                     canvas[25:475, 1150:1180] = colorbar
 
+                    
+                    cv2.putText(canvas, "1", (1185, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
+                    cv2.putText(canvas, "0", (1185, 475), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
                     cv2.putText(canvas, f"Current hall: {zaal_predict}", (900, 535), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
                     cv2.putText(canvas, f"Probability: {round(percentage, 2)}", (900, 560), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
 
                     cv2.imshow("Display Images", canvas)
                     key = cv2.waitKey(0)
                     # Check the pressed key and do something based on it
-                    while key != ord('y') and key != ord('n'):
-                        key = cv2.waitKey(0)
+                    # while key != ord('y') and key != ord('n'):
+                    #     key = cv2.waitKey(0)
                     cv2.destroyAllWindows()
                     
                 # clear to save space
