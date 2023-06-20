@@ -12,7 +12,6 @@ import pandas as pd
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('.')))
-import assignment1
 from assignment2.assignment2 import *
 from geomap import showHeatmap
 from Extractor import *

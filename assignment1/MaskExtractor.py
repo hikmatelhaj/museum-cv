@@ -1,30 +1,13 @@
 import cv2 as cv
 import numpy as np
-import matplotlib.pyplot as plt
-import colorsys
 
-# def findPainting(image):
-# #     Get edges and make them wider
-
-#     hsv =  cv.cvtColor(image, cv.COLOR_BGR2HSV)
-#     im_meanshifted = applyMeanShift(hsv)
-#     lower = 0
-#     upper = 0
-#     img_masked = getMask(im_meanshifted, lower, upper)
-#     #gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-
-#     cv.imshow("X",cv.resize(gray, dsize=(int(gray.shape[0]/5), int(gray.shape[1]/5))))
-#     sigma = 0.40
-#     v = np.median(gray)
-#     lower = int(max(0, (1.0 - sigma) * v))
-#     upper = int(min(255, (1.0 + sigma) * v))
-#     L2Gradient = True
-#     # ret, thresh = cv.threshold(blur, 1, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
-    
-#     edges = cv.Canny(gray, 70, 250)
-#     dilated = cv.dilate(edges, np.ones((5,5), np.uint8))
-
-#     cv.imshow("Y",cv.resize(dilated, dsize=(int(dilated.shape[0]/5), int(dilated.shape[1]/5))))
+#
+#
+#
+# NOT FINAL, TESTING FILE
+#
+#
+#
 
 def getMask(img):
     hsv =  cv.cvtColor(img, cv.COLOR_BGR2HSV)

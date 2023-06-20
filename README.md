@@ -2,7 +2,10 @@
 Project Computervision
 
 # Assignment 1: painting detection
-
+- `Extractor.py`: extraction of a painting per image and scales the image to the extracted paintings
+- `Evaluator.py`: calculation of the different performance metrics (IoU, FP, FN, ...) of each extracted painting (can be done per image or for all database images)
+- `Rectifier.py`: rectification logic for the GoPro video's
+- `MaskExtractor.py`: unclean testing code for extraction painting with masking and mean shift (not implemented in the final system) 
 
 # Assignment 2: matching
 The files `histogram.pkl`, `keypoints.pkl` and `descriptors.pkl` are mandatory for the code to run. These files can also be created with the function `create_keypoints_and_color_hist_db()`. The logic of assignment 2 located in the folder `assignment2`.
