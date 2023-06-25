@@ -16,6 +16,7 @@ from assignment2.assignment2 import *
 from geomap import showHeatmap, heatmapToImg
 from assignment1.Extractor import *
 from assignment1.Rectifier import Rectifier
+screen_scale_factor = 1.5
 
 # Possible rooms
 states = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "RI", "II", "V"]
@@ -88,7 +89,7 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     continue
                 scores, files = calculate_score_assignment2_multi(extracted_painting, "data/database")
                 
-                canvas = np.zeros((600*2, 1000*2, 3), dtype=np.uint8)
+                canvas = np.zeros((int(600*screen_scale_factor), int(1000*screen_scale_factor), 3), dtype=np.uint8)
                 scores = np.array(scores)
                 files = np.array(files)
                 
@@ -170,34 +171,34 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     
                     print_green(f"Room {zaal_predict} is predicted with {round(percentage*100, 2)}% certainty. The matching database room is {zaal}.")
                     
-                    
+
                     img2 = cv2.imread("data/database/" + file_name) # highest match
                     img2 = cv2.GaussianBlur(img2, (5, 5), 0) # for displaying purposes
                     img3 = highest_extracted_painting # extracted
 
-                    img2 = cv2.resize(img2, (250*2, 250*2)) 
-                    img3 = cv2.resize(img3, (250*2, 250*2))
-                    highest_frame_with_contours = cv2.resize(highest_frame_with_contours, (350*2, 250*2))
+                    img2 = cv2.resize(img2, (int(250*screen_scale_factor), int(250*screen_scale_factor))) 
+                    img3 = cv2.resize(img3, (int(250*screen_scale_factor), int(250*screen_scale_factor)))
+                    highest_frame_with_contours = cv2.resize(highest_frame_with_contours, (int(350*screen_scale_factor), int(250*screen_scale_factor)))
                     
-                    canvas = np.zeros((600*2, 1230*2, 3), dtype=np.uint8)
+                    canvas = np.zeros((int(600*screen_scale_factor), int(1230*screen_scale_factor), 3), dtype=np.uint8)
 
-                    canvas[25*2:275*2, 50*2:400*2] = highest_frame_with_contours
-                    canvas[325*2:575*2, 50*2:300*2] = img2
+                    canvas[int(25*screen_scale_factor):int(275*screen_scale_factor), int(50*screen_scale_factor):int(400*screen_scale_factor)] = highest_frame_with_contours
+                    canvas[int(325*screen_scale_factor):int(575*screen_scale_factor), int(50*screen_scale_factor):int(300*screen_scale_factor)] = img2
 
-                    cv2.putText(canvas, f"Match score: {round(highest_score, 2)}", (325*2, 535*2), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 2)
-                    cv2.putText(canvas, f"Hall: {get_zaal_by_filename(file)}", (325*2, 560*2), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 1)
+                    cv2.putText(canvas, f"Match score: {round(highest_score, 2)}", (int(325*screen_scale_factor), int(535*screen_scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 2)
+                    cv2.putText(canvas, f"Hall: {get_zaal_by_filename(file)}", (int(325*screen_scale_factor), int(570*screen_scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 1)
 
                     heatmapImg, colorbar = heatmapToImg(df)
-                    heatmapImg = cv2.resize(heatmapImg, (600*2, 450*2))
-                    colorbar = cv2.resize(colorbar, (30*2, 450*2))
-                    canvas[25*2:475*2, 540*2:1140*2] = heatmapImg
-                    canvas[25*2:475*2, 1150*2:1180*2] = colorbar
+                    heatmapImg = cv2.resize(heatmapImg, (int(600*screen_scale_factor), int(450*screen_scale_factor)))
+                    colorbar = cv2.resize(colorbar, (int(30*screen_scale_factor), int(450*screen_scale_factor)))
+                    canvas[int(25*screen_scale_factor):int(475*screen_scale_factor), int(540*screen_scale_factor):int(1140*screen_scale_factor)] = heatmapImg
+                    canvas[int(25*screen_scale_factor):int(475*screen_scale_factor), int(1150*screen_scale_factor):int(1180*screen_scale_factor)] = colorbar
 
                     
                     cv2.putText(canvas, "1", (1185, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
                     cv2.putText(canvas, "0", (1185, 475), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
-                    cv2.putText(canvas, f"Current hall: {zaal_predict}", (900*2, 535*2), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 2)
-                    cv2.putText(canvas, f"Probability: {round(percentage, 2)}", (900*2, 560*2), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 1)
+                    cv2.putText(canvas, f"Current hall: {zaal_predict}", (int(900*screen_scale_factor), int(535*screen_scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 2)
+                    cv2.putText(canvas, f"Probability: {round(percentage, 2)}", (int(900*screen_scale_factor), int(570*screen_scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 1)
 
                     cv2.imshow("Display Images", canvas)
                     key = cv2.waitKey(0)
