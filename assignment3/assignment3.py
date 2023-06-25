@@ -86,9 +86,9 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
             for idx, extracted_painting in enumerate(results):
                 if idx > 2: # process max 2 paintings per frame for performance reasons
                     continue
-                scores, files = calculate_score_assignment2_multi(extracted_painting, "data/Database")
+                scores, files = calculate_score_assignment2_multi(extracted_painting, "data/database")
                 
-                canvas = np.zeros((600, 1000, 3), dtype=np.uint8)
+                canvas = np.zeros((600*2, 1000*2, 3), dtype=np.uint8)
                 scores = np.array(scores)
                 files = np.array(files)
                 
@@ -171,33 +171,33 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     print_green(f"Room {zaal_predict} is predicted with {round(percentage*100, 2)}% certainty. The matching database room is {zaal}.")
                     
                     
-                    img2 = cv2.imread("data/Database/" + file_name) # highest match
+                    img2 = cv2.imread("data/database/" + file_name) # highest match
                     img2 = cv2.GaussianBlur(img2, (5, 5), 0) # for displaying purposes
                     img3 = highest_extracted_painting # extracted
 
-                    img2 = cv2.resize(img2, (250, 250)) 
-                    img3 = cv2.resize(img3, (250, 250))
-                    highest_frame_with_contours = cv2.resize(highest_frame_with_contours, (350, 250))
+                    img2 = cv2.resize(img2, (250*2, 250*2)) 
+                    img3 = cv2.resize(img3, (250*2, 250*2))
+                    highest_frame_with_contours = cv2.resize(highest_frame_with_contours, (350*2, 250*2))
                     
-                    canvas = np.zeros((600, 1230, 3), dtype=np.uint8)
+                    canvas = np.zeros((600*2, 1230*2, 3), dtype=np.uint8)
 
-                    canvas[25:275, 50:400] = highest_frame_with_contours
-                    canvas[325:575, 50:300] = img2
+                    canvas[25*2:275*2, 50*2:400*2] = highest_frame_with_contours
+                    canvas[325*2:575*2, 50*2:300*2] = img2
 
-                    cv2.putText(canvas, f"Match score: {round(highest_score, 2)}", (325, 535), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
-                    cv2.putText(canvas, f"Hall: {get_zaal_by_filename(file)}", (325, 560), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
+                    cv2.putText(canvas, f"Match score: {round(highest_score, 2)}", (325*2, 535*2), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 2)
+                    cv2.putText(canvas, f"Hall: {get_zaal_by_filename(file)}", (325*2, 560*2), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 1)
 
                     heatmapImg, colorbar = heatmapToImg(df)
-                    heatmapImg = cv2.resize(heatmapImg, (600, 450))
-                    colorbar = cv2.resize(colorbar, (30, 450))
-                    canvas[25:475, 540:1140] = heatmapImg
-                    canvas[25:475, 1150:1180] = colorbar
+                    heatmapImg = cv2.resize(heatmapImg, (600*2, 450*2))
+                    colorbar = cv2.resize(colorbar, (30*2, 450*2))
+                    canvas[25*2:475*2, 540*2:1140*2] = heatmapImg
+                    canvas[25*2:475*2, 1150*2:1180*2] = colorbar
 
                     
                     cv2.putText(canvas, "1", (1185, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
                     cv2.putText(canvas, "0", (1185, 475), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
-                    cv2.putText(canvas, f"Current hall: {zaal_predict}", (900, 535), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
-                    cv2.putText(canvas, f"Probability: {round(percentage, 2)}", (900, 560), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 1)
+                    cv2.putText(canvas, f"Current hall: {zaal_predict}", (900*2, 535*2), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 2)
+                    cv2.putText(canvas, f"Probability: {round(percentage, 2)}", (900*2, 560*2), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 1)
 
                     cv2.imshow("Display Images", canvas)
                     key = cv2.waitKey(0)
