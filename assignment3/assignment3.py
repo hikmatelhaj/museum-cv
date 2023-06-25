@@ -186,7 +186,7 @@ def process_video(video_path, state_probability, gopro=False, type="calibration_
                     canvas[int(325*screen_scale_factor):int(575*screen_scale_factor), int(50*screen_scale_factor):int(300*screen_scale_factor)] = img2
 
                     cv2.putText(canvas, f"Match score: {round(highest_score, 2)}", (int(325*screen_scale_factor), int(535*screen_scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 2)
-                    cv2.putText(canvas, f"Hall: {get_zaal_by_filename(file)}", (int(325*screen_scale_factor), int(570*screen_scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 1)
+                    cv2.putText(canvas, f"Hall: {get_zaal_by_filename(file_name)}", (int(325*screen_scale_factor), int(570*screen_scale_factor)), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (255, 255, 255), 1)
 
                     heatmapImg, colorbar = heatmapToImg(df)
                     heatmapImg = cv2.resize(heatmapImg, (int(600*screen_scale_factor), int(450*screen_scale_factor)))
